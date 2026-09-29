@@ -68,6 +68,13 @@ class SettingsScreen extends StatelessWidget {
                 KeyValueRow('Name', value(d.deviceName ?? '—')),
                 Divider(height: 20, color: c.divider),
                 KeyValueRow('Link', value('BLE · Board 5')),
+                if (d.linkError != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    d.linkError!,
+                    style: TextStyle(fontSize: 12, color: c.danger, height: 1.4),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 if (d.link == LinkStatus.connected)
                   PillButton(

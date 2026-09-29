@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'data/readings_store.dart';
+import 'device/ble_device_service.dart';
 import 'device/device_service.dart';
 import 'device/mock_device_service.dart';
 import 'screens/welcome_screen.dart';
@@ -12,8 +13,11 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final settings = await AppSettings.load();
 
-  // Swap MockDeviceService for the BLE implementation once Board 5 is ready.
-  final DeviceService device = MockDeviceService();
+  // Real device over BLE by default. For the simulated device (no hardware):
+  //   flutter run --dart-define=OMHS_MOCK=true
+  const useMock = bool.fromEnvironment('OMHS_MOCK');
+  final DeviceService device =
+      useMock ? MockDeviceService() : BleDeviceService();
   final store = ReadingsStore(device, seedDemoData: true);
 
   runApp(

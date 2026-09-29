@@ -94,6 +94,14 @@ class MeasureScreen extends StatelessWidget {
                 ),
               ],
             ),
+          if (d.linkError != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              d.linkError!,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: c.danger, height: 1.4),
+            ),
+          ],
           if (d.phase == MeasurePhase.done && d.lastResult != null) ...[
             const SizedBox(height: 20),
             _ResultCard(

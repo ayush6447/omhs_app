@@ -4,7 +4,7 @@ Companion app for the OMHS device. It shows the live measurement cycle, the resu
 
 The UI is dual-toned: royal blue with soft lavender/pink, and a cyan accent. It has light and dark themes; switch with the sun/moon button on any screen or under **Settings → Appearance** (System / Light / Dark). The choice is saved on the phone.
 
-Right now the app runs on a **mock device** that plays a full cycle (inflate → hold → measure → deflate → result), so the whole UI works before Board 5's BLE firmware exists.
+The app connects to Board 5 over BLE (Nordic UART Service, `lib/device/ble_device_service.dart`). It scans for a device advertising the NUS UUID or with `OMHS` in its name. To use the simulated device instead (full cycle: inflate → hold → measure → deflate → result, no hardware needed), run with `--dart-define=OMHS_MOCK=true`.
 
 ## Run it
 The repo contains `lib/`, `test/`, `assets/` and `pubspec.yaml`. Generate the Android and iOS platform folders once, then run:
@@ -69,9 +69,8 @@ Board 5 forwards the Teensy's UART text lines over BLE unchanged, so the app par
 The app's Stop is a request, not a safety cutoff. The Teensy firmware must enforce the maximum cuff pressure and inflation time on its own.
 
 ## Next steps
-1. **BLE transport.** Add `flutter_blue_plus`, write `BleDeviceService extends DeviceService` (scan, connect, subscribe to the ESP32's TX characteristic, split on `\n`, call `handleLine`; write commands to RX). The Nordic UART Service UUIDs are the usual choice on the ESP32 side. Swap it in `main.dart`.
-   - Android: add the `BLUETOOTH_SCAN` / `BLUETOOTH_CONNECT` permissions (and location for Android ≤ 11).
-   - iOS: add `NSBluetoothAlwaysUsageDescription` to `Info.plist`.
+1. **BLE firmware.** Board 5 must expose the Nordic UART Service (`6E400001-…`): notify on TX `6E400003-…` with the Teensy's lines ending in `
+`, accept commands on RX `6E400002-…`, and advertise a name containing `OMHS`. flutter_blue_plus is used under its nonprofit license (`License.nonprofit` in `ble_device_service.dart`); commercial use needs a paid license.
 2. **Persistence.** `ReadingsStore` is in memory; move it to sqflite or Hive, and add CSV export for the clinic data.
 3. **Remove demo data.** `ReadingsStore(device, seedDemoData: true)` in `main.dart` seeds 8 sample readings. Set it to `false` for real use.
 4. **Raw data.** For calibration you will want the raw optical samples, not just the result. Add a `RAW,...` line and store it per reading.

@@ -21,6 +21,7 @@ abstract class DeviceService extends ChangeNotifier {
   double _progress = 0;
   Reading? _lastResult;
   String? _error;
+  String? _linkError;
   final _results = StreamController<Reading>.broadcast();
 
   LinkStatus get link => _link;
@@ -33,6 +34,10 @@ abstract class DeviceService extends ChangeNotifier {
   double get progress => _progress;
   Reading? get lastResult => _lastResult;
   String? get error => _error;
+
+  /// Why the last connect attempt failed or the link dropped; cleared on the
+  /// next link change.
+  String? get linkError => _linkError;
 
   /// Every completed measurement.
   Stream<Reading> get results => _results.stream;
@@ -56,8 +61,9 @@ abstract class DeviceService extends ChangeNotifier {
   Future<void> stop() => sendLine(cmdStop);
 
   @protected
-  void setLink(LinkStatus status, {String? name}) {
+  void setLink(LinkStatus status, {String? name, String? error}) {
     _link = status;
+    _linkError = error;
     if (name != null) _name = name;
     if (status == LinkStatus.disconnected) {
       _phase = MeasurePhase.idle;
