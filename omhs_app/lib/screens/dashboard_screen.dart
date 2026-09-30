@@ -9,6 +9,7 @@ import '../theme/app_settings.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/ring_gauge.dart';
+import 'profile_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({
@@ -45,7 +46,9 @@ class DashboardScreen extends StatelessWidget {
               const Spacer(),
               const ThemeToggleButton(),
               const SizedBox(width: 10),
-              const InitialsAvatar('AK'),
+              ProfileAvatar(
+                onTap: () => Navigator.of(context).push(ProfileScreen.route()),
+              ),
             ],
           ),
           const SizedBox(height: 16),

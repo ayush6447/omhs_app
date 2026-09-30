@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../data/format.dart';
+import '../data/user_profile.dart';
 import '../device/device_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_settings.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
+import 'profile_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -38,6 +40,9 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 22),
+          const SectionLabel('Profile'),
+          const _ProfileCard(),
+          const SizedBox(height: 26),
           const SectionLabel('Appearance'),
           SegmentedPill<ThemeMode>(
             values: const [ThemeMode.system, ThemeMode.light, ThemeMode.dark],
@@ -111,6 +116,62 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Avatar, name and age; opens the full profile.
+class _ProfileCard extends StatelessWidget {
+  const _ProfileCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.omhs;
+    final p = context.watch<ProfileStore>().profile;
+    final details = [
+      if (p.age != null) '${p.age} yrs',
+      if (p.sex != null) sexLabel(p.sex!),
+    ].join(' · ');
+    return Material(
+      color: c.surfaceAlt,
+      borderRadius: BorderRadius.circular(22),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => Navigator.of(context).push(ProfileScreen.route()),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              const ProfileAvatar(size: 52),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      p.isEmpty ? 'Set up your profile' : p.name.trim(),
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: c.text,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      p.isEmpty
+                          ? 'Photo, age and health details'
+                          : (details.isEmpty ? 'Edit profile' : details),
+                      style: TextStyle(fontSize: 12, color: c.muted),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, color: c.muted),
+            ],
+          ),
+        ),
       ),
     );
   }

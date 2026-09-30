@@ -37,3 +37,6 @@ String _two(int n) => n.toString().padLeft(2, '0');
 String formatWhen(DateTime t) =>
     '${_weekdays[t.weekday - 1]} ${t.day} ${_months[t.month - 1]} · '
     '${_two(t.hour)}:${_two(t.minute)}';
+
+/// e.g. "29 Sep 1991"
+String formatDate(DateTime t) => '${t.day} ${_months[t.month - 1]} ${t.year}';

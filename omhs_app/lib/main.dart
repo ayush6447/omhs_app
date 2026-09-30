@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'data/readings_store.dart';
+import 'data/user_profile.dart';
 import 'device/ble_device_service.dart';
 import 'device/device_service.dart';
 import 'device/mock_device_service.dart';
@@ -12,6 +13,7 @@ import 'theme/app_theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final settings = await AppSettings.load();
+  final profile = await ProfileStore.load();
 
   // Real device over BLE by default. For the simulated device (no hardware):
   //   flutter run --dart-define=OMHS_MOCK=true
@@ -24,6 +26,7 @@ Future<void> main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider<AppSettings>.value(value: settings),
+        ChangeNotifierProvider<ProfileStore>.value(value: profile),
         ChangeNotifierProvider<DeviceService>.value(value: device),
         ChangeNotifierProvider<ReadingsStore>.value(value: store),
       ],

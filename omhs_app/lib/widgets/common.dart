@@ -1,9 +1,11 @@
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../data/format.dart';
+import '../data/user_profile.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_settings.dart';
 import '../theme/app_theme.dart';
@@ -130,27 +132,46 @@ class ThemeToggleButton extends StatelessWidget {
   }
 }
 
-class InitialsAvatar extends StatelessWidget {
-  const InitialsAvatar(this.initials, {super.key});
+/// The user's photo, or their initials on a blue circle when there is none.
+class ProfileAvatar extends StatelessWidget {
+  const ProfileAvatar({super.key, this.size = 40, this.onTap});
 
-  final String initials;
+  final double size;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final c = context.omhs;
-    return Container(
-      width: 40,
-      height: 40,
+    final p = context.watch<ProfileStore>().profile;
+    final photo = p.photoPath;
+    final avatar = Container(
+      width: size,
+      height: size,
       alignment: Alignment.center,
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(color: c.primary, shape: BoxShape.circle),
-      child: Text(
-        initials,
-        style: TextStyle(
-          color: c.onPrimary,
-          fontWeight: FontWeight.w600,
-          fontSize: 14,
-        ),
-      ),
+      child: photo != null
+          ? Image.file(
+              File(photo),
+              width: size,
+              height: size,
+              fit: BoxFit.cover,
+              cacheWidth: (size * MediaQuery.devicePixelRatioOf(context)).round(),
+            )
+          : Text(
+              p.initials,
+              style: TextStyle(
+                color: c.onPrimary,
+                fontWeight: FontWeight.w600,
+                fontSize: size * 0.35,
+              ),
+            ),
+    );
+    if (onTap == null) return avatar;
+    return Semantics(
+      button: true,
+      label: 'Profile',
+      child: GestureDetector(onTap: onTap, child: avatar),
     );
   }
 }

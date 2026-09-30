@@ -4,6 +4,10 @@
 <dict>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>OMHS uses Bluetooth to connect to your OMHS device.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>OMHS uses the camera to take your profile photo.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>OMHS lets you choose a profile photo from your library.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
