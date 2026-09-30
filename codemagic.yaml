@@ -19,7 +19,16 @@ workflows:
         script: cd ios && pod install --repo-update
       - name: Build iOS (no codesign)
         script: flutter build ios --release --no-codesign
+      # Unsigned .ipa for sideloading with a free Apple ID (e.g. Sideloadly),
+      # which re-signs it on install.
+      - name: Package unsigned IPA
+        script: |
+          cd build/ios/iphoneos
+          mkdir -p Payload
+          cp -R Runner.app Payload/
+          zip -qr OMHS-unsigned.ipa Payload
     artifacts:
+      - build/ios/iphoneos/*.ipa
       - build/ios/iphoneos/*.app
       - /tmp/xcodebuild_logs/*.log
 

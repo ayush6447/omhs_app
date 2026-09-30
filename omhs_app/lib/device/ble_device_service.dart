@@ -124,23 +124,31 @@ class BleDeviceService extends DeviceService {
   Future<BluetoothDevice> _scan() async {
     // Subscribe before starting so the first result can't be missed.
     final found = FlutterBluePlus.onScanResults
-        .where((results) => results.isNotEmpty)
-        .map((results) => results.first.device)
+        .expand((results) => results)
+        .where(_isOmhs)
+        .map((result) => result.device)
         .first
         .timeout(_scanTimeout);
     try {
-      // Filters are OR-ed: advertised service UUID or name keyword.
-      await FlutterBluePlus.startScan(
-        withServices: [nusService],
-        withKeywords: [nameKeyword],
-        timeout: _scanTimeout,
-      );
+      // Unfiltered scan, matched here: Android rejects withKeywords combined
+      // with withServices, and we want either one to match.
+      await FlutterBluePlus.startScan(timeout: _scanTimeout);
       return await found;
     } on TimeoutException {
       throw const _BleFailure('No OMHS device found. Is it powered on and nearby?');
+    } catch (_) {
+      found.ignore(); // scan never started; don't leak its timeout
+      rethrow;
     } finally {
       await FlutterBluePlus.stopScan();
     }
+  }
+
+  static bool _isOmhs(ScanResult result) {
+    final ad = result.advertisementData;
+    return ad.serviceUuids.contains(nusService) ||
+        ad.advName.contains(nameKeyword) ||
+        result.device.platformName.contains(nameKeyword);
   }
 
   void _onData(List<int> bytes) {
