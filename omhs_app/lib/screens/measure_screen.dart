@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../data/format.dart';
+import '../data/user_profile.dart';
 import '../device/device_service.dart';
 import '../device/protocol.dart';
 import '../theme/app_colors.dart';
@@ -314,7 +315,8 @@ class _ResultCard extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              CategoryBadge(categorize(mgdl)),
+              CategoryBadge(categorize(mgdl,
+                  age: context.watch<ProfileStore>().profile.age)),
             ],
           ),
           Divider(height: 24, color: c.divider),

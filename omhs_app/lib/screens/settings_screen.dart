@@ -42,7 +42,18 @@ class SettingsScreen extends StatelessWidget {
           const SizedBox(height: 22),
           const SectionLabel('Profile'),
           const _ProfileCard(),
-          const SizedBox(height: 26),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => showProfileSwitcher(context),
+              icon: const Icon(Icons.people_alt_outlined, size: 18),
+              label: Text(context.watch<ProfileStore>().profiles.length > 1
+                  ? 'Switch profile'
+                  : 'Add another person'),
+            ),
+          ),
+          const SizedBox(height: 16),
           const SectionLabel('Appearance'),
           SegmentedPill<ThemeMode>(
             values: const [ThemeMode.system, ThemeMode.light, ThemeMode.dark],
@@ -138,7 +149,7 @@ class _ProfileCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(22),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => Navigator.of(context).push(ProfileScreen.route()),
+        onTap: () => Navigator.of(context).push(ProfileScreen.route(p.id)),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(

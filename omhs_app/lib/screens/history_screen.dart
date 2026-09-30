@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../data/format.dart';
 import '../data/reading.dart';
 import '../data/readings_store.dart';
+import '../data/user_profile.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_settings.dart';
 import '../theme/app_theme.dart';
@@ -37,13 +38,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
     super.dispose();
   }
 
-  bool _matches(Reading r) {
+  bool _matches(Reading r, UserProfile profile) {
+    final cat = categorize(r.totalChol, age: profile.ageAt(r.time));
     final ok = switch (_filter) {
       _Filter.all => true,
       _Filter.flagged => r.flagged,
-      _Filter.desirable => categorize(r.totalChol) == CholCategory.desirable,
-      _Filter.borderline => categorize(r.totalChol) == CholCategory.borderline,
-      _Filter.high => categorize(r.totalChol) == CholCategory.high,
+      _Filter.desirable => cat == CholCategory.desirable,
+      _Filter.borderline => cat == CholCategory.borderline,
+      _Filter.high => cat == CholCategory.high,
     };
     if (!ok) return false;
     final q = _query.trim().toLowerCase();
@@ -58,7 +60,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final c = context.omhs;
     final store = context.watch<ReadingsStore>();
     final unit = context.watch<AppSettings>().unit;
-    final list = store.items.where(_matches).toList();
+    final profile = context.watch<ProfileStore>().profile;
+    final list = store.items.where((r) => _matches(r, profile)).toList();
 
     return SafeArea(
       bottom: false,
@@ -247,7 +250,14 @@ class _ReadingCard extends StatelessWidget {
                     bg: c.badge, fg: c.onBadge),
               ),
               Divider(height: 20, color: c.divider),
-              KeyValueRow('Category', CategoryBadge(categorize(r.totalChol))),
+              KeyValueRow(
+                'Category',
+                CategoryBadge(categorize(r.totalChol,
+                    age: context
+                        .watch<ProfileStore>()
+                        .profile
+                        .ageAt(r.time))),
+              ),
             ],
           ),
         ),
@@ -295,7 +305,11 @@ class _ReadingSheet extends StatelessWidget {
                           weight: FontWeight.w400, color: c.primary)),
                 ),
                 const Spacer(),
-                CategoryBadge(categorize(r.totalChol)),
+                CategoryBadge(categorize(r.totalChol,
+                    age: context
+                        .watch<ProfileStore>()
+                        .profile
+                        .ageAt(r.time))),
               ],
             ),
             const SizedBox(height: 18),

@@ -132,17 +132,53 @@ class ThemeToggleButton extends StatelessWidget {
   }
 }
 
-/// The user's photo, or their initials on a blue circle when there is none.
-class ProfileAvatar extends StatelessWidget {
-  const ProfileAvatar({super.key, this.size = 40, this.onTap});
+/// 40px round icon button on a tinted circle.
+class RoundIconButton extends StatelessWidget {
+  const RoundIconButton({
+    super.key,
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
 
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.omhs;
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: c.surfaceAlt,
+        shape: const CircleBorder(),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: SizedBox.square(
+            dimension: 40,
+            child: Icon(icon, size: 20, color: c.primary),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A profile's photo, or its initials on a blue circle when there is none.
+class ProfileAvatar extends StatelessWidget {
+  const ProfileAvatar({super.key, this.profile, this.size = 40, this.onTap});
+
+  /// Defaults to the active profile.
+  final UserProfile? profile;
   final double size;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final c = context.omhs;
-    final p = context.watch<ProfileStore>().profile;
+    final p = profile ?? context.watch<ProfileStore>().profile;
     final photo = p.photoPath;
     final avatar = Container(
       width: size,

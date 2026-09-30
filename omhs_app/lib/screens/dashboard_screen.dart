@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../data/format.dart';
 import '../data/readings_store.dart';
+import '../data/user_profile.dart';
 import '../device/device_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_settings.dart';
@@ -30,6 +31,8 @@ class DashboardScreen extends StatelessWidget {
     final store = context.watch<ReadingsStore>();
     final unit = context.watch<AppSettings>().unit;
     final latest = store.latest;
+    final profile = context.watch<ProfileStore>().profile;
+    final ranges = rangesFor(profile.age);
     final week =
         store.countSince(DateTime.now().subtract(const Duration(days: 7)));
 
@@ -46,9 +49,7 @@ class DashboardScreen extends StatelessWidget {
               const Spacer(),
               const ThemeToggleButton(),
               const SizedBox(width: 10),
-              ProfileAvatar(
-                onTap: () => Navigator.of(context).push(ProfileScreen.route()),
-              ),
+              ProfileAvatar(onTap: () => showProfileSwitcher(context)),
             ],
           ),
           const SizedBox(height: 16),
@@ -75,7 +76,8 @@ class DashboardScreen extends StatelessWidget {
                   ),
                   if (latest != null) ...[
                     const SizedBox(height: 8),
-                    CategoryBadge(categorize(latest.totalChol)),
+                    CategoryBadge(categorize(latest.totalChol,
+                        age: profile.ageAt(latest.time))),
                   ],
                 ],
               ),
@@ -88,6 +90,14 @@ class DashboardScreen extends StatelessWidget {
                   ? 'No readings yet'
                   : 'Last reading · ${formatWhen(latest.time)}',
               style: TextStyle(fontSize: 12, color: c.muted),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Center(
+            child: Text(
+              '${ranges.label} · desirable under '
+              '${formatChol(ranges.borderlineFrom, unit)} ${unitLabel(unit)}',
+              style: TextStyle(fontSize: 11, color: c.muted),
             ),
           ),
           const SizedBox(height: 24),

@@ -13,6 +13,7 @@ class Reading {
     required this.peakPressure,
     this.flagged = false,
     this.note,
+    this.profileId,
   });
 
   final String id;
@@ -34,7 +35,11 @@ class Reading {
   final bool flagged;
   final String? note;
 
-  Reading copyWith({bool? flagged, String? note}) => Reading(
+  /// Whose reading this is (see ProfileStore). Null until the store tags it.
+  final String? profileId;
+
+  Reading copyWith({bool? flagged, String? note, String? profileId}) =>
+      Reading(
         id: id,
         time: time,
         totalChol: totalChol,
@@ -44,5 +49,6 @@ class Reading {
         peakPressure: peakPressure,
         flagged: flagged ?? this.flagged,
         note: note ?? this.note,
+        profileId: profileId ?? this.profileId,
       );
 }

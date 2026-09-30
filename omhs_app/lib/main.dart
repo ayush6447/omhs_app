@@ -20,7 +20,7 @@ Future<void> main() async {
   const useMock = bool.fromEnvironment('OMHS_MOCK');
   final DeviceService device =
       useMock ? MockDeviceService() : BleDeviceService();
-  final store = ReadingsStore(device, seedDemoData: true);
+  final store = ReadingsStore(device, profile, seedDemoData: true);
 
   runApp(
     MultiProvider(

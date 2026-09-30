@@ -4,34 +4,61 @@ import 'package:flutter/foundation.dart';
 
 import '../device/device_service.dart';
 import 'reading.dart';
+import 'user_profile.dart';
 
-/// Measurement history. In-memory for now; swap in sqflite/Hive later.
+/// Measurement history for every profile; [items] shows the active one's.
+/// In-memory for now; swap in sqflite/Hive later.
 class ReadingsStore extends ChangeNotifier {
-  ReadingsStore(DeviceService device, {bool seedDemoData = false}) {
+  ReadingsStore(DeviceService device, this._profiles,
+      {bool seedDemoData = false}) {
     _sub = device.results.listen(add);
-    if (seedDemoData) _items.addAll(_demoReadings());
+    _activeId = _profiles.activeId;
+    _profiles.addListener(_onProfilesChanged);
+    if (seedDemoData) _all.addAll(_demoReadings(_activeId));
   }
 
+  final ProfileStore _profiles;
   late final StreamSubscription<Reading> _sub;
-  final List<Reading> _items = [];
+  late String _activeId;
 
-  /// Newest first.
-  List<Reading> get items => List.unmodifiable(_items);
+  /// All profiles, newest first.
+  final List<Reading> _all = [];
 
-  Reading? get latest => _items.isEmpty ? null : _items.first;
+  /// The active profile's readings, newest first.
+  List<Reading> get items => List.unmodifiable(
+      _all.where((r) => r.profileId == _profiles.activeId));
+
+  void _onProfilesChanged() {
+    if (_profiles.activeId == _activeId) return;
+    _activeId = _profiles.activeId;
+    notifyListeners();
+  }
+
+  Reading? get latest {
+    for (final r in _all) {
+      if (r.profileId == _profiles.activeId) return r;
+    }
+    return null;
+  }
 
   Reading? byId(String id) {
-    for (final r in _items) {
+    for (final r in _all) {
       if (r.id == id) return r;
     }
     return null;
   }
 
   int countSince(DateTime since) =>
-      _items.where((r) => r.time.isAfter(since)).length;
+      items.where((r) => r.time.isAfter(since)).length;
 
+  /// Stores a new reading under the active profile.
   void add(Reading r) {
-    _items.insert(0, r);
+    _all.insert(0, r.copyWith(profileId: _profiles.activeId));
+    notifyListeners();
+  }
+
+  void removeForProfile(String profileId) {
+    _all.removeWhere((r) => r.profileId == profileId);
     notifyListeners();
   }
 
@@ -40,19 +67,20 @@ class ReadingsStore extends ChangeNotifier {
   void setNote(String id, String note) => _update(id, (r) => r.copyWith(note: note));
 
   void _update(String id, Reading Function(Reading) change) {
-    final i = _items.indexWhere((r) => r.id == id);
+    final i = _all.indexWhere((r) => r.id == id);
     if (i < 0) return;
-    _items[i] = change(_items[i]);
+    _all[i] = change(_all[i]);
     notifyListeners();
   }
 
   @override
   void dispose() {
     _sub.cancel();
+    _profiles.removeListener(_onProfilesChanged);
     super.dispose();
   }
 
-  static List<Reading> _demoReadings() {
+  static List<Reading> _demoReadings(String profileId) {
     final now = DateTime.now();
     const chol = [182.0, 176.0, 204.0, 191.0, 169.0, 243.0, 188.0, 199.0];
     const quality = [0.91, 0.88, 0.79, 0.93, 0.86, 0.72, 0.90, 0.84];
@@ -78,6 +106,7 @@ class ReadingsStore extends ChangeNotifier {
         peakPressure: 178.0 + (i % 3) * 2,
         flagged: i == 5,
         note: notes[i],
+        profileId: profileId,
       );
     });
   }
