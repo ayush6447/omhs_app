@@ -11,10 +11,7 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_blue_plus: ^2.3.13
-  flutter_localizations:
-    sdk: flutter
   image_picker: ^1.2.3
-  intl: ^0.20.2
   path_provider: ^2.1.6
   pdf: ^3.13.1
   provider: ^6.1.2
@@ -26,9 +23,14 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
+
+  assets:
+    - assets/branding/omhs_logo_icon.png
+    - assets/branding/omhs_logo_mark_transparent.png
 
   # Fonts are bundled (not fetched at runtime) so the app works offline in clinics.
   fonts:
@@ -48,3 +50,19 @@ flutter:
           weight: 400
         - asset: assets/fonts/SpaceMono-Bold.ttf
           weight: 700
+
+# App icons: `dart run flutter_launcher_icons` after changing the logo.
+flutter_launcher_icons:
+  # iOS masks the corners itself and rejects transparency: full-bleed square.
+  ios: true
+  image_path_ios: assets/branding/omhs_logo_square.png
+  remove_alpha_ios: true
+  # Android before 8.0 shows the image as-is: the rounded icon.
+  android: true
+  image_path_android: assets/branding/omhs_logo_icon.png
+  # Android 8+ crops to the launcher's shape (circle, squircle, ...). The
+  # foreground is the mark pre-shrunk to 60% so the arcs stay inside the
+  # safe zone.
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: assets/branding/omhs_logo_adaptive_foreground.png
+  adaptive_icon_foreground_inset: 0

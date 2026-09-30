@@ -6,28 +6,22 @@ import '../data/format.dart';
 /// User preferences, persisted on the device.
 class AppSettings extends ChangeNotifier {
   AppSettings._(this._prefs, this._themeMode, this._unit, this._bodyUnits,
-      this._language, this._setupDone);
+      this._setupDone);
 
   static const _kTheme = 'themeMode';
   static const _kUnit = 'cholUnit';
   static const _kBody = 'bodyUnits';
-  static const _kLanguage = 'language';
   static const _kSetupDone = 'setupDone';
 
   final SharedPreferences _prefs;
   ThemeMode _themeMode;
   CholUnit _unit;
   BodyUnits _bodyUnits;
-  String? _language;
   bool _setupDone;
 
   ThemeMode get themeMode => _themeMode;
   CholUnit get unit => _unit;
   BodyUnits get bodyUnits => _bodyUnits;
-
-  /// Language code ('en', 'hi'), or null to follow the phone.
-  String? get language => _language;
-  Locale? get locale => _language == null ? null : Locale(_language!);
 
   /// Whether the first-run profile setup has been shown.
   bool get setupDone => _setupDone;
@@ -42,7 +36,6 @@ class AppSettings extends ChangeNotifier {
       pick(ThemeMode.values, _kTheme, ThemeMode.system),
       pick(CholUnit.values, _kUnit, CholUnit.mgdl),
       pick(BodyUnits.values, _kBody, BodyUnits.metric),
-      prefs.getString(_kLanguage),
       prefs.getBool(_kSetupDone) ?? false,
     );
   }
@@ -71,17 +64,6 @@ class AppSettings extends ChangeNotifier {
     _bodyUnits = units;
     notifyListeners();
     await _prefs.setString(_kBody, units.name);
-  }
-
-  Future<void> setLanguage(String? code) async {
-    if (code == _language) return;
-    _language = code;
-    notifyListeners();
-    if (code == null) {
-      await _prefs.remove(_kLanguage);
-    } else {
-      await _prefs.setString(_kLanguage, code);
-    }
   }
 
   Future<void> markSetupDone() async {

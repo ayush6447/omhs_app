@@ -8,7 +8,6 @@ import '../theme/app_colors.dart';
 import '../theme/app_settings.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
-import '../widgets/cross_logo.dart';
 import 'home_shell.dart';
 import 'setup_screen.dart';
 
@@ -67,12 +66,22 @@ class WelcomeScreen extends StatelessWidget {
                       alignment: Alignment.centerRight,
                       child: ThemeToggleButton(onHero: true),
                     ),
-                    Transform.translate(
-                      offset: const Offset(-14, -8),
-                      child: CrossLogo(
-                        size: 150,
-                        rayColor: Color.lerp(c.hero, white, 0.16)!,
-                        accent: c.cyan,
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(26),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.25),
+                            blurRadius: 24,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Image.asset(
+                        'assets/branding/omhs_logo_icon.png',
+                        width: 112,
+                        height: 112,
+                        semanticLabel: 'OMHS',
                       ),
                     ),
                     const Spacer(),

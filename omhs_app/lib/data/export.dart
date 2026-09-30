@@ -108,6 +108,10 @@ class ReportExporter {
     final regular = await font('Poppins-Regular');
     final bold = await font('Poppins-SemiBold');
     final mono = await font('SpaceMono-Bold');
+    final logo = pw.MemoryImage((await rootBundle
+            .load('assets/branding/omhs_logo_mark_transparent.png'))
+        .buffer
+        .asUint8List());
 
     final p = profile;
     final u = unitLabel(unit);
@@ -183,6 +187,8 @@ class ReportExporter {
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.end,
           children: [
+            pw.Image(logo, width: 34, height: 34),
+            pw.SizedBox(width: 10),
             pw.Expanded(
               child: pw.Text('Cholesterol report',
                   style: pw.TextStyle(font: mono, fontSize: 22, color: _blue)),
