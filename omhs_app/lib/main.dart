@@ -20,7 +20,10 @@ Future<void> main() async {
   const useMock = bool.fromEnvironment('OMHS_MOCK');
   final DeviceService device =
       useMock ? MockDeviceService() : BleDeviceService();
-  final store = ReadingsStore(device, profile, seedDemoData: true);
+  // Sample history only with the simulated device, so it never mixes into
+  // a real person's saved readings.
+  final store =
+      await ReadingsStore.load(device, profile, seedDemoData: useMock);
 
   runApp(
     MultiProvider(

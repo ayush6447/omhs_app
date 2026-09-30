@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
@@ -13,7 +14,13 @@ String sexLabel(Sex s) => switch (s) {
       Sex.other => 'Other',
     };
 
-String newProfileId() => 'p${DateTime.now().microsecondsSinceEpoch}';
+final _rng = Random();
+var _idSeq = 0;
+
+/// Unique even when called twice within the clock's resolution (which is
+/// coarse on some platforms), or across devices when a backup is restored.
+String newProfileId() => 'p${DateTime.now().microsecondsSinceEpoch}'
+    '_${_idSeq++}_${_rng.nextInt(1 << 32).toRadixString(36)}';
 
 /// Who is being measured. Age, sex and risk factors put a cholesterol
 /// reading in context, so they live alongside the basics.
@@ -289,6 +296,25 @@ class ProfileStore extends ChangeNotifier {
     if (target == null) return;
     await update((p) => p.copyWith(photoPath: () => null), id: target.id);
     _deleteQuietly(target.photoPath);
+  }
+
+  /// Replaces every profile, e.g. when restoring a backup. Photos of the
+  /// old profiles that aren't reused are deleted.
+  Future<void> replaceAll(List<UserProfile> profiles, String activeId) async {
+    if (profiles.isEmpty) throw ArgumentError('No profiles');
+    final keep = profiles.map((p) => p.photoPath).toSet();
+    final old = _profiles
+        .map((p) => p.photoPath)
+        .where((p) => !keep.contains(p))
+        .toList();
+    _profiles
+      ..clear()
+      ..addAll(profiles);
+    _activeId =
+        profiles.any((p) => p.id == activeId) ? activeId : profiles.first.id;
+    notifyListeners();
+    await _save();
+    old.forEach(_deleteQuietly);
   }
 
   static void _deleteQuietly(String? path) {

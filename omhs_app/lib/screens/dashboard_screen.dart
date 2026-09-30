@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../data/format.dart';
+import '../data/reading.dart';
 import '../data/readings_store.dart';
 import '../data/user_profile.dart';
 import '../device/device_service.dart';
@@ -10,6 +11,7 @@ import '../theme/app_settings.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/ring_gauge.dart';
+import '../widgets/trend_chart.dart';
 import 'profile_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
@@ -101,6 +103,8 @@ class DashboardScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
+          _TrendCard(readings: store.items, unit: unit, ranges: ranges),
+          const SizedBox(height: 24),
           MetricTile(
             label: 'Signal quality',
             value: latest == null ? '—' : '${(latest.quality * 100).round()}',
@@ -135,6 +139,82 @@ class DashboardScreen extends StatelessWidget {
               'Estimates from a research prototype, not a diagnosis.',
               style: TextStyle(fontSize: 11, color: c.muted),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TrendCard extends StatefulWidget {
+  const _TrendCard({
+    required this.readings,
+    required this.unit,
+    required this.ranges,
+  });
+
+  final List<Reading> readings;
+  final CholUnit unit;
+  final CholRanges ranges;
+
+  @override
+  State<_TrendCard> createState() => _TrendCardState();
+}
+
+class _TrendCardState extends State<_TrendCard> {
+  TrendSpan _span = TrendSpan.days90;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.omhs;
+    const labels = {
+      TrendSpan.days30: '30d',
+      TrendSpan.days90: '90d',
+      TrendSpan.all: 'All',
+    };
+    return SoftCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text('Trend',
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: c.text)),
+              ),
+              for (final s in TrendSpan.values)
+                Semantics(
+                  button: true,
+                  selected: s == _span,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => setState(() => _span = s),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 6),
+                      child: Text(
+                        labels[s]!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight:
+                              s == _span ? FontWeight.w700 : FontWeight.w500,
+                          color: s == _span ? c.primary : c.muted,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          TrendChart(
+            readings: widget.readings,
+            unit: widget.unit,
+            ranges: widget.ranges,
+            span: _span,
           ),
         ],
       ),

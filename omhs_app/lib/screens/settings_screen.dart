@@ -1,7 +1,13 @@
+import 'dart:convert';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../data/backup.dart';
+import '../data/export.dart';
 import '../data/format.dart';
+import '../data/readings_store.dart';
 import '../data/user_profile.dart';
 import '../device/device_service.dart';
 import '../theme/app_colors.dart';
@@ -111,6 +117,9 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 26),
+          const SectionLabel('Backup'),
+          const _BackupCard(),
+          const SizedBox(height: 26),
           const SectionLabel('About'),
           SoftCard(
             child: Column(
@@ -183,6 +192,121 @@ class _ProfileCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Save everything to a file, or replace everything from one.
+class _BackupCard extends StatelessWidget {
+  const _BackupCard();
+
+  Future<void> _backup(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final backup = await Backup.fromStores(
+          context.read<ProfileStore>(), context.read<ReadingsStore>());
+      final file = await backup.writeTemp();
+      await shareFile(file, subject: 'OMHS backup');
+    } catch (e) {
+      messenger.showSnackBar(
+          const SnackBar(content: Text('Could not create the backup.')));
+      debugPrint('Backup failed: $e');
+    }
+  }
+
+  Future<void> _restore(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final profiles = context.read<ProfileStore>();
+    final readings = context.read<ReadingsStore>();
+    final Backup backup;
+    try {
+      final picked = await FilePicker.pickFile(dialogTitle: 'Choose a backup');
+      if (picked == null) return;
+      backup = Backup.decode(utf8.decode(await picked.readAsBytes()));
+    } on FormatException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+      return;
+    } catch (e) {
+      messenger.showSnackBar(
+          const SnackBar(content: Text('Could not open that file.')));
+      debugPrint('Restore failed: $e');
+      return;
+    }
+    if (!context.mounted) return;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Replace data on this phone?'),
+        content: Text(
+          'Backup from ${formatWhen(backup.createdAt)}: '
+          '${backup.profiles.length} profile(s), '
+          '${backup.readings.length} reading(s).\n\n'
+          'This replaces the ${profiles.profiles.length} profile(s) and '
+          '${readings.all.length} reading(s) on this phone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: context.omhs.danger),
+            child: const Text('Replace'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await backup.restoreInto(profiles, readings);
+      messenger.showSnackBar(const SnackBar(content: Text('Backup restored.')));
+    } catch (e) {
+      messenger.showSnackBar(
+          const SnackBar(content: Text('Restore failed. Try again or use another backup file.')));
+      debugPrint('Restore failed: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.omhs;
+    return SoftCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Profiles, photos and readings in one file. Keep it in Drive or '
+            'email, or use it to move to a new phone.',
+            style: TextStyle(fontSize: 12, color: c.muted, height: 1.45),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: PillButton(
+                  label: 'Back up',
+                  icon: Icons.cloud_upload_outlined,
+                  variant: PillVariant.primary,
+                  expand: true,
+                  onPressed: () => _backup(context),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: PillButton(
+                  label: 'Restore',
+                  icon: Icons.settings_backup_restore_rounded,
+                  variant: PillVariant.outline,
+                  expand: true,
+                  onPressed: () => _restore(context),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

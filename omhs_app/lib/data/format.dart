@@ -60,3 +60,6 @@ String formatWhen(DateTime t) =>
 
 /// e.g. "29 Sep 1991"
 String formatDate(DateTime t) => '${t.day} ${_months[t.month - 1]} ${t.year}';
+
+/// e.g. "29 Sep"
+String formatShortDate(DateTime t) => '${t.day} ${_months[t.month - 1]}';

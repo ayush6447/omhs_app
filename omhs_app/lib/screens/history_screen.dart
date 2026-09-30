@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../data/export.dart';
 import '../data/format.dart';
 import '../data/reading.dart';
 import '../data/readings_store.dart';
@@ -103,6 +104,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         padding: const EdgeInsets.all(12),
                         child: Icon(Icons.search_rounded, color: c.muted),
                       ),
+                    IconButton(
+                      tooltip: 'Export',
+                      icon: Icon(Icons.ios_share_rounded, color: c.primary),
+                      onPressed: store.items.isEmpty
+                          ? null
+                          : () => _export(context),
+                    ),
                   ],
                 ),
                 Container(height: 1.5, color: c.text),
@@ -159,6 +167,55 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _export(BuildContext context) async {
+    final format = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) {
+        final c = context.omhs;
+        Widget tile(IconData icon, String title, String sub, String value) =>
+            ListTile(
+              leading: Icon(icon, color: c.primary),
+              title: Text(title,
+                  style: TextStyle(color: c.text, fontWeight: FontWeight.w500)),
+              subtitle: Text(sub,
+                  style: TextStyle(fontSize: 12, color: c.muted)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              onTap: () => Navigator.pop(context, value),
+            );
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                tile(Icons.picture_as_pdf_outlined, 'PDF report',
+                    'Profile, trend and readings. For your doctor.', 'pdf'),
+                tile(Icons.table_chart_outlined, 'CSV spreadsheet',
+                    'Every reading with raw values. For Excel.', 'csv'),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (format == null || !context.mounted) return;
+    final profile = context.read<ProfileStore>().profile;
+    final exporter = ReportExporter(profile,
+        context.read<ReadingsStore>().items, context.read<AppSettings>().unit);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final file = format == 'pdf' ? await exporter.pdf() : await exporter.csv();
+      await shareFile(file,
+          subject: 'Cholesterol report'
+              '${profile.name.trim().isEmpty ? '' : ' – ${profile.name.trim()}'}');
+    } catch (e) {
+      messenger.showSnackBar(
+          const SnackBar(content: Text('Could not create the report.')));
+      debugPrint('Export failed: $e');
+    }
   }
 
   void _showDetail(BuildContext context, String id) {
