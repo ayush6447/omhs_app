@@ -2,26 +2,38 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../data/user_profile.dart';
 import '../device/device_service.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_settings.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/cross_logo.dart';
 import 'home_shell.dart';
+import 'setup_screen.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
 
   void _go(BuildContext context, {required bool connect}) {
     if (connect) context.read<DeviceService>().connect();
-    Navigator.of(context).pushReplacement(
-      PageRouteBuilder<void>(
-        transitionDuration: const Duration(milliseconds: 450),
-        pageBuilder: (_, __, ___) => const HomeShell(),
-        transitionsBuilder: (_, anim, __, child) =>
-            FadeTransition(opacity: anim, child: child),
-      ),
-    );
+    final nav = Navigator.of(context);
+    Route<void> fade(Widget page) => PageRouteBuilder<void>(
+          transitionDuration: const Duration(milliseconds: 450),
+          pageBuilder: (_, __, ___) => page,
+          transitionsBuilder: (_, anim, __, child) =>
+              FadeTransition(opacity: anim, child: child),
+        );
+    // Ask who's being measured the first time only (and not for people
+    // who filled in a profile before setup existed).
+    final settings = context.read<AppSettings>();
+    final needsSetup =
+        !settings.setupDone && context.read<ProfileStore>().profile.isEmpty;
+    if (!needsSetup) settings.markSetupDone();
+    nav.pushReplacement(fade(needsSetup
+        ? SetupScreen(
+            onDone: () => nav.pushReplacement(fade(const HomeShell())))
+        : const HomeShell()));
   }
 
   @override

@@ -14,7 +14,8 @@ import 'user_profile.dart';
 
 /// Shareable reports of one profile's readings.
 class ReportExporter {
-  ReportExporter(this.profile, List<Reading> readings, this.unit)
+  ReportExporter(this.profile, List<Reading> readings, this.unit,
+      {this.bodyUnits = BodyUnits.metric})
       : readings = [...readings]..sort((a, b) => b.time.compareTo(a.time));
 
   final UserProfile profile;
@@ -22,6 +23,7 @@ class ReportExporter {
   /// Newest first.
   final List<Reading> readings;
   final CholUnit unit;
+  final BodyUnits bodyUnits;
 
   String get _baseName {
     final who = profile.name.trim().isEmpty
@@ -207,10 +209,12 @@ class ReportExporter {
                           : '${formatDate(p.birthDate!)} (${p.age} yrs)'),
                   fact('Sex', p.sex == null ? '—' : sexLabel(p.sex!)),
                   fact('Height / weight', [
-                    p.heightCm == null ? '—' : '${p.heightCm!.round()} cm',
+                    p.heightCm == null
+                        ? '—'
+                        : formatHeight(p.heightCm!, bodyUnits),
                     p.weightKg == null
                         ? '—'
-                        : '${p.weightKg!.toStringAsFixed(1)} kg',
+                        : formatWeight(p.weightKg!, bodyUnits),
                   ].join(' / ')),
                   fact('BMI',
                       p.bmi == null ? '—' : p.bmi!.toStringAsFixed(1)),

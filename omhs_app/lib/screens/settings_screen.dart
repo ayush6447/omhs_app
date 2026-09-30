@@ -80,6 +80,13 @@ class SettingsScreen extends StatelessWidget {
             selected: settings.unit,
             onChanged: settings.setUnit,
           ),
+          const SizedBox(height: 10),
+          SegmentedPill<BodyUnits>(
+            values: BodyUnits.values,
+            labels: const ['cm · kg', 'ft · lb'],
+            selected: settings.bodyUnits,
+            onChanged: settings.setBodyUnits,
+          ),
           const SizedBox(height: 26),
           const SectionLabel('Device'),
           SoftCard(

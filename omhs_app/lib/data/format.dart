@@ -1,5 +1,23 @@
 enum CholUnit { mgdl, mmoll }
 
+/// Height and weight display. Values are always stored in cm and kg.
+enum BodyUnits { metric, imperial }
+
+const double kCmPerInch = 2.54;
+const double kKgPerLb = 0.45359237;
+
+/// e.g. "175 cm" or "5 ft 9 in"
+String formatHeight(double cm, BodyUnits u) {
+  if (u == BodyUnits.metric) return '${cm.round()} cm';
+  final inches = (cm / kCmPerInch).round();
+  return '${inches ~/ 12} ft ${inches % 12} in';
+}
+
+/// e.g. "70.5 kg" or "155 lb"
+String formatWeight(double kg, BodyUnits u) => u == BodyUnits.metric
+    ? '${kg.toStringAsFixed(kg == kg.roundToDouble() ? 0 : 1)} kg'
+    : '${(kg / kKgPerLb).round()} lb';
+
 enum CholCategory { desirable, borderline, high }
 
 /// mg/dL -> mmol/L for cholesterol.

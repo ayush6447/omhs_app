@@ -203,8 +203,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
     if (format == null || !context.mounted) return;
     final profile = context.read<ProfileStore>().profile;
-    final exporter = ReportExporter(profile,
-        context.read<ReadingsStore>().items, context.read<AppSettings>().unit);
+    final settings = context.read<AppSettings>();
+    final exporter = ReportExporter(
+        profile, context.read<ReadingsStore>().items, settings.unit,
+        bodyUnits: settings.bodyUnits);
     final messenger = ScaffoldMessenger.of(context);
     try {
       final file = format == 'pdf' ? await exporter.pdf() : await exporter.csv();

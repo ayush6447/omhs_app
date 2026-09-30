@@ -10,8 +10,10 @@ import '../data/format.dart';
 import '../data/readings_store.dart';
 import '../data/user_profile.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_settings.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
+import '../widgets/form_fields.dart';
 
 /// Lists every profile; tap one to make it active, or add a new one.
 Future<void> showProfileSwitcher(BuildContext context) =>
@@ -36,8 +38,17 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   late final TextEditingController _name;
-  late final TextEditingController _height;
-  late final TextEditingController _weight;
+  /// Centimetres, or feet in imperial.
+  final _height = TextEditingController();
+
+  /// Inches part of the height (imperial only).
+  final _heightIn = TextEditingController();
+
+  /// Kilograms or pounds.
+  final _weight = TextEditingController();
+
+  /// Units the body fields currently show; null until first filled.
+  BodyUnits? _units;
   late final TextEditingController _emergencyName;
   late final TextEditingController _emergencyPhone;
   late final TextEditingController _doctorName;
@@ -50,8 +61,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.initState();
     final p = context.read<ProfileStore>().byId(_id) ?? UserProfile(id: _id);
     _name = TextEditingController(text: p.name);
-    _height = TextEditingController(text: _num(p.heightCm));
-    _weight = TextEditingController(text: _num(p.weightKg));
     _emergencyName = TextEditingController(text: p.emergencyName);
     _emergencyPhone = TextEditingController(text: p.emergencyPhone);
     _doctorName = TextEditingController(text: p.doctorName);
@@ -63,6 +72,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     for (final c in [
       _name,
       _height,
+      _heightIn,
       _weight,
       _emergencyName,
       _emergencyPhone,
@@ -85,6 +95,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (v == null || v < min || v > max) return null;
     return v;
   }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final units = Provider.of<AppSettings>(context).bodyUnits;
+    if (units == _units) return;
+    _units = units;
+    final p = context.read<ProfileStore>().byId(_id);
+    final h = p?.heightCm, w = p?.weightKg;
+    if (units == BodyUnits.metric) {
+      _height.text = _num(h);
+      _heightIn.text = '';
+      _weight.text = _num(w);
+    } else {
+      final inches = h == null ? null : (h / kCmPerInch).round();
+      _height.text = inches == null ? '' : '${inches ~/ 12}';
+      _heightIn.text = inches == null ? '' : '${inches % 12}';
+      _weight.text = w == null ? '' : '${(w / kKgPerLb).round()}';
+    }
+  }
+
+  bool get _imperial => _units == BodyUnits.imperial;
+
+  /// Height typed into the fields, in cm; null when empty or implausible.
+  double? get _typedHeightCm {
+    if (!_imperial) return _parse(_height.text, 50, 250);
+    final ft = _parse(_height.text, 1, 8);
+    final inch =
+        _heightIn.text.trim().isEmpty ? 0.0 : _parse(_heightIn.text, 0, 11.99);
+    if (ft == null || inch == null) return null;
+    final cm = (ft * 12 + inch) * kCmPerInch;
+    return cm >= 50 && cm <= 250 ? cm : null;
+  }
+
+  bool get _heightInvalid =>
+      (_height.text.trim().isNotEmpty || _heightIn.text.trim().isNotEmpty) &&
+      _typedHeightCm == null;
+
+  /// Weight typed into the field, in kg; null when empty or implausible.
+  double? get _typedWeightKg {
+    if (!_imperial) return _parse(_weight.text, 2, 400);
+    final lb = _parse(_weight.text, 5, 880);
+    return lb == null ? null : lb * kKgPerLb;
+  }
+
+  void _saveHeight() =>
+      _edit((p) => p.copyWith(heightCm: () => _typedHeightCm));
+
+  void _saveWeight() =>
+      _edit((p) => p.copyWith(weightKg: () => _typedWeightKg));
 
   Future<void> _edit(UserProfile Function(UserProfile) change) =>
       context.read<ProfileStore>().update(change, id: _id);
@@ -277,14 +337,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             SoftCard(
               child: Column(
                 children: [
-                  _Field(
+                  AppTextField(
                     controller: _name,
                     label: 'Full name',
                     textCapitalization: TextCapitalization.words,
                     onChanged: (v) => _edit((p) => p.copyWith(name: v)),
                   ),
                   const SizedBox(height: 12),
-                  _TapField(
+                  AppTapField(
                     label: 'Date of birth',
                     value: p.birthDate == null
                         ? null
@@ -315,32 +375,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Row(
                     children: [
                       Expanded(
-                        child: _Field(
+                        child: AppTextField(
                           controller: _height,
                           label: 'Height',
-                          suffix: 'cm',
+                          suffix: _imperial ? 'ft' : 'cm',
                           keyboard: const TextInputType.numberWithOptions(
                               decimal: true),
                           allow: RegExp(r'[0-9.,]'),
-                          invalid: _height.text.trim().isNotEmpty &&
-                              _parse(_height.text, 50, 250) == null,
-                          onChanged: (v) => _edit((p) => p.copyWith(
-                              heightCm: () => _parse(v, 50, 250))),
+                          invalid: _heightInvalid,
+                          onChanged: (_) => _saveHeight(),
                         ),
                       ),
+                      if (_imperial) ...[
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: AppTextField(
+                            controller: _heightIn,
+                            label: '',
+                            suffix: 'in',
+                            keyboard: const TextInputType.numberWithOptions(
+                                decimal: true),
+                            allow: RegExp(r'[0-9.,]'),
+                            invalid: _heightInvalid,
+                            onChanged: (_) => _saveHeight(),
+                          ),
+                        ),
+                      ],
                       const SizedBox(width: 12),
                       Expanded(
-                        child: _Field(
+                        child: AppTextField(
                           controller: _weight,
                           label: 'Weight',
-                          suffix: 'kg',
+                          suffix: _imperial ? 'lb' : 'kg',
                           keyboard: const TextInputType.numberWithOptions(
                               decimal: true),
                           allow: RegExp(r'[0-9.,]'),
                           invalid: _weight.text.trim().isNotEmpty &&
-                              _parse(_weight.text, 2, 400) == null,
-                          onChanged: (v) => _edit((p) =>
-                              p.copyWith(weightKg: () => _parse(v, 2, 400))),
+                              _typedWeightKg == null,
+                          onChanged: (_) => _saveWeight(),
                         ),
                       ),
                     ],
@@ -589,14 +661,14 @@ class _ContactCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          _Field(
+          AppTextField(
             controller: name,
             label: 'Name',
             textCapitalization: TextCapitalization.words,
             onChanged: onName,
           ),
           const SizedBox(height: 12),
-          _Field(
+          AppTextField(
             controller: phone,
             label: 'Phone',
             keyboard: TextInputType.phone,
@@ -604,103 +676,6 @@ class _ContactCard extends StatelessWidget {
             onChanged: onPhone,
           ),
         ],
-      ),
-    );
-  }
-}
-
-InputDecoration _decoration(BuildContext context, String label,
-    {String? suffix, bool invalid = false}) {
-  final c = context.omhs;
-  OutlineInputBorder border(Color color) => OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: color, width: 1.4),
-      );
-  return InputDecoration(
-    labelText: label,
-    suffixText: suffix,
-    filled: true,
-    fillColor: c.surface,
-    isDense: true,
-    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-    labelStyle: TextStyle(color: c.muted, fontSize: 13),
-    floatingLabelStyle: TextStyle(color: invalid ? c.danger : c.primary),
-    suffixStyle: mono(12, weight: FontWeight.w400, color: c.muted),
-    enabledBorder: border(invalid ? c.danger : Colors.transparent),
-    focusedBorder: border(invalid ? c.danger : c.primary),
-  );
-}
-
-class _Field extends StatelessWidget {
-  const _Field({
-    required this.controller,
-    required this.label,
-    required this.onChanged,
-    this.suffix,
-    this.keyboard = TextInputType.name,
-    this.allow,
-    this.invalid = false,
-    this.textCapitalization = TextCapitalization.none,
-  });
-
-  final TextEditingController controller;
-  final String label;
-  final ValueChanged<String> onChanged;
-  final String? suffix;
-  final TextInputType keyboard;
-
-  /// Characters the field accepts; anything when null.
-  final RegExp? allow;
-  final bool invalid;
-  final TextCapitalization textCapitalization;
-
-  @override
-  Widget build(BuildContext context) => TextField(
-        controller: controller,
-        onChanged: onChanged,
-        textCapitalization: textCapitalization,
-        textInputAction: TextInputAction.done,
-        keyboardType: keyboard,
-        inputFormatters:
-            allow == null ? null : [FilteringTextInputFormatter.allow(allow!)],
-        style: TextStyle(
-          fontSize: 15,
-          color: context.omhs.text,
-          fontFamily: keyboard == TextInputType.name ? null : kMonoFont,
-        ),
-        decoration:
-            _decoration(context, label, suffix: suffix, invalid: invalid),
-      );
-}
-
-/// Looks like a field, opens a picker when tapped.
-class _TapField extends StatelessWidget {
-  const _TapField({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.onTap,
-  });
-
-  final String label;
-  final String? value;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.omhs;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: InputDecorator(
-        isEmpty: value == null,
-        decoration: _decoration(context, label).copyWith(
-          suffixIcon: Icon(icon, size: 20, color: c.muted),
-        ),
-        child: value == null
-            ? null
-            : Text(value!, style: TextStyle(fontSize: 15, color: c.text)),
       ),
     );
   }
