@@ -1,0 +1,61 @@
+# Codemagic CI: builds the iOS app on Codemagic's cloud Macs.
+# Builds only start when you press "Start new build" in Codemagic; nothing
+# here connects to or installs on any phone.
+workflows:
+  # Checks the iOS app compiles. Needs no Apple account or signing.
+  ios-build-check:
+    name: iOS build check (unsigned)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    working_directory: omhs_app
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Get packages
+        script: flutter pub get
+      - name: Install pods
+        script: cd ios && pod install --repo-update
+      - name: Build iOS (no codesign)
+        script: flutter build ios --release --no-codesign
+    artifacts:
+      - build/ios/iphoneos/*.app
+      - /tmp/xcodebuild_logs/*.log
+
+  # Signed build uploaded to TestFlight. Needs an Apple Developer account and
+  # an App Store Connect API key added in Codemagic as the integration named
+  # below (Team settings > Integrations > Developer Portal).
+  ios-testflight:
+    name: iOS TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    working_directory: omhs_app
+    integrations:
+      app_store_connect: OMHS App Store Connect key
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.ayuda.omhs.omhsApp
+    scripts:
+      - name: Get packages
+        script: flutter pub get
+      - name: Install pods
+        script: cd ios && pod install --repo-update
+      - name: Apply signing profiles
+        script: xcode-project use-profiles
+      - name: Build IPA
+        script: |
+          flutter build ipa --release \
+            --build-number=$BUILD_NUMBER \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
