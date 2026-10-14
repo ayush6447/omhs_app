@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'device_service.dart';
+import 'firmware_update.dart';
 import 'protocol.dart';
 
 /// Simulates the Teensy by emitting the same protocol lines it will print.
@@ -21,8 +24,17 @@ class MockDeviceService extends DeviceService {
   static const _deflateEnd = 130; // 2 s
   static const _target = 180.0; // mmHg
 
-  /// Simulated firmware versions reported by CMD,STATUS.
-  static const firmwareLine = 'VER,0.1-sim,0.1-sim';
+  /// Simulated firmware versions reported by CMD,STATUS; a firmware update
+  /// bumps the minor number.
+  int _b1 = 1, _b5 = 1;
+  String get firmwareLine => 'VER,0.$_b1-sim,0.$_b5-sim';
+
+  // Firmware update being received.
+  String? _otaTarget;
+  int _otaSize = 0;
+  int _otaCrc = 0;
+  final _otaBytes = BytesBuilder(copy: false);
+  static const _otaDelay = Duration(milliseconds: 1);
 
   @override
   Future<void> connect() async {
@@ -61,6 +73,48 @@ class MockDeviceService extends DeviceService {
     if (line == cmdStatus) {
       handleLine(firmwareLine);
       handleLine(isBusy ? 'STATE,DEFLATE' : 'STATE,IDLE');
+    }
+    if (line.startsWith('OTA,')) _receiveOta(line.split(','));
+  }
+
+  void _receiveOta(List<String> p) {
+    void reply(String line) => Timer(_otaDelay, () {
+          if (isConnected) handleLine(line);
+        });
+    switch (p[1]) {
+      case 'BEGIN':
+        _otaTarget = p[2];
+        _otaSize = int.parse(p[3]);
+        _otaCrc = int.parse(p[4], radix: 16);
+        _otaBytes.clear();
+        reply('OTA,READY,512');
+      case 'DATA' when _otaTarget != null:
+        // Out of order: ask for the right offset again.
+        if (int.parse(p[2]) == _otaBytes.length) {
+          _otaBytes.add(base64Decode(p[3]));
+        }
+        reply('OTA,ACK,${_otaBytes.length}');
+      case 'END' when _otaTarget != null:
+        final target = _otaTarget;
+        final image = _otaBytes.takeBytes();
+        _otaTarget = null;
+        if (image.length != _otaSize || crc32(image) != _otaCrc) {
+          reply('OTA,FAIL,checksum mismatch');
+          return;
+        }
+        reply('OTA,OK');
+        if (target == 'B5') {
+          _b5++;
+          // The BLE board restarts, so the link drops and comes back.
+          Timer(const Duration(milliseconds: 200), simulateDrop);
+        } else {
+          _b1++;
+        }
+      case 'ABORT':
+        _otaTarget = null;
+        _otaBytes.clear();
+      default:
+        reply('OTA,FAIL,no update in progress');
     }
   }
 

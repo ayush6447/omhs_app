@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../data/format.dart';
 import '../data/reading.dart';
 import '../data/readings_store.dart';
+import '../data/trend_alerts.dart';
 import '../data/user_profile.dart';
 import '../device/device_service.dart';
 import '../theme/app_colors.dart';
@@ -11,6 +12,7 @@ import '../theme/app_settings.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/ring_gauge.dart';
+import '../widgets/trend_alert_card.dart';
 import '../widgets/trend_chart.dart';
 import 'profile_screen.dart';
 
@@ -37,6 +39,7 @@ class DashboardScreen extends StatelessWidget {
     final ranges = rangesFor(profile.age);
     final week =
         store.countSince(DateTime.now().subtract(const Duration(days: 7)));
+    final alerts = trendAlerts(store.items, ageAt: profile.ageAt);
 
     return SafeArea(
       bottom: false,
@@ -102,6 +105,10 @@ class DashboardScreen extends StatelessWidget {
               style: TextStyle(fontSize: 11, color: c.muted),
             ),
           ),
+          if (alerts.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            TrendAlertCard(alerts: alerts, unit: unit),
+          ],
           const SizedBox(height: 24),
           _TrendCard(readings: store.items, unit: unit, ranges: ranges),
           const SizedBox(height: 24),

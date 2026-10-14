@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../data/format.dart';
+import '../data/readings_store.dart';
+import '../data/trend_alerts.dart';
 import '../data/user_profile.dart';
 import '../device/device_service.dart';
 import '../device/protocol.dart';
@@ -10,6 +12,7 @@ import '../theme/app_settings.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/ring_gauge.dart';
+import '../widgets/trend_alert_card.dart';
 
 class MeasureScreen extends StatelessWidget {
   const MeasureScreen({super.key});
@@ -86,7 +89,8 @@ class MeasureScreen extends StatelessWidget {
                     icon: Icons.play_arrow_rounded,
                     variant: PillVariant.primary,
                     expand: true,
-                    onPressed: d.isBusy ? null : d.start,
+                    onPressed:
+                        d.isBusy || d.isUpdatingFirmware ? null : d.start,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -150,6 +154,16 @@ class MeasureScreen extends StatelessWidget {
               mgdl: d.lastResult!.totalChol,
               quality: d.lastResult!.quality,
               unit: unit,
+            ),
+            const _ResultAlerts(),
+          ],
+          if (d.isUpdatingFirmware) ...[
+            const SizedBox(height: 16),
+            Text(
+              'A firmware update is running. Measuring is paused until it '
+              'finishes.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: c.muted, height: 1.4),
             ),
           ],
           if (d.phase == MeasurePhase.error) ...[
@@ -374,6 +388,24 @@ class _ResultCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Alerts for the reading just saved (it's the newest in the store).
+class _ResultAlerts extends StatelessWidget {
+  const _ResultAlerts();
+
+  @override
+  Widget build(BuildContext context) {
+    final readings = context.watch<ReadingsStore>().items;
+    final profile = context.watch<ProfileStore>().profile;
+    final alerts = trendAlerts(readings, ageAt: profile.ageAt);
+    if (alerts.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: TrendAlertCard(
+          alerts: alerts, unit: context.watch<AppSettings>().unit),
     );
   }
 }

@@ -5,7 +5,7 @@
  Teensy (Board 1)  ──UART text lines──▶  ESP32-C3 (Board 5)  ──BLE NUS──▶  Flutter app
    cuff, LEDs,                              forwards lines                 (Android / iOS)
    optical sensing                          unchanged
- ◀───────────────── CMD,START / CMD,STOP / CMD,STATUS ─────────────────────
+ ◀──────────── CMD,START / CMD,STOP / CMD,STATUS / OTA,… ─────────────────
 ```
 Board 5 is a transparent bridge, so the app parses exactly what the Teensy
 prints. The firmware owns safety (max cuff pressure, max inflation time).
@@ -19,7 +19,8 @@ lib/
     device_service.dart  abstract DeviceService: state machine, status wording,
                          ReconnectPolicy
     ble_device_service.dart   flutter_blue_plus over Nordic UART Service
-    mock_device_service.dart  simulated Teensy (OMHS_MOCK=true)
+    mock_device_service.dart  simulated Teensy (OMHS_MOCK=true), incl. updates
+    firmware_update.dart  FirmwareUpdater: OTA over the line protocol, crc32
   data/                models + persistence
     reading.dart         immutable Reading (JSON)
     readings_store.dart  history per profile, readings.json in app docs dir
@@ -27,19 +28,26 @@ lib/
     backup.dart          one-file backup/restore (profiles, photos, readings)
     export.dart          per-profile PDF report + CSV, share sheet
     format.dart          units, age-based cholesterol categories, dates
+    trend_alerts.dart    high / worse band / rising / weak-signal checks
+    reminders.dart       ReminderSchedule + nextReminder()
+    notifications.dart   NotificationService (flutter_local_notifications)
   theme/               OmhsColors (ThemeExtension), ThemeData, AppSettings
   widgets/             ring gauge, trend chart, nav bar, cards, form fields
   screens/             welcome, setup, home shell, dashboard, measure,
-                       history, profile, settings
+                       history, profile, settings, firmware
 ```
 
 ### State (provider + ChangeNotifier)
 | Provider | Owns | Persisted in |
 |---|---|---|
-| `AppSettings` | theme mode, chol unit, body units, setup done | shared_preferences |
+| `AppSettings` | theme mode, chol unit, body units, setup done, reminder | shared_preferences |
 | `ProfileStore` | profiles, active profile, photos | shared_preferences + app docs |
 | `DeviceService` | link status, phase, pressure, currents, progress, result, firmware | last device ID (BLE) |
 | `ReadingsStore` | all readings, filtered to active profile | `readings.json` |
+| `NotificationService` (plain `Provider`) | reminder schedule, alert notifications | OS scheduler |
+
+`FirmwareUpdater` is not global: the Firmware screen owns one for as long as
+it is open.
 
 ### Data flow for one measurement
 1. User taps Start → `DeviceService.start()` → `sendLine("CMD,START")`.
@@ -51,6 +59,45 @@ lib/
 4. `ReadingsStore` (subscribed to `results`) tags it with the active profile
    and saves (chained writes, temp file + rename).
 5. Dashboard / History / TrendChart rebuild from `ReadingsStore`.
+6. `trendAlerts()` runs on the active profile's readings: shown on Measure and
+   Dashboard; if the app is in the background, `main.dart` posts the top
+   alert as a notification.
+
+## Trend alerts (`trend_alerts.dart`)
+Checked on the newest reading only, most important first:
+- **Weak signal** (quality < 0.6): the only alert, since the number isn't trusted.
+- **High**: in the high band for the person's age.
+- **Worse band**: higher band than the previous trusted reading.
+- **Rising**: ≥ 20 mg/dL *and* ≥ 10 % above the mean of the previous 3 trusted
+  readings from the last 90 days.
+
+## Reminders
+`ReminderSchedule` (daily, or weekly on a weekday, at a time) is saved in
+`AppSettings`. `NotificationService.applyReminder` schedules one repeating
+notification (`zonedSchedule` + `matchDateTimeComponents`, inexact so no alarm
+permission) and is called on every change and at launch (time-zone changes).
+Permission is asked only when the user turns reminders on.
+
+## Firmware updates (OTA)
+Draft protocol on the same text link; the firmware side is not written yet.
+```
+app  OTA,BEGIN,<B1|B5>,<size>,<crc32 hex>   device  OTA,READY[,<max chunk>]
+app  OTA,DATA,<offset>,<base64>             device  OTA,ACK,<next offset>
+     … one chunk in flight; ACK may ask for an earlier offset (resend) …
+app  OTA,END                                device  OTA,OK | OTA,FAIL,<msg>
+app  OTA,ABORT   (cancel; device drops what it received)
+```
+- Chunk size: as many bytes as fit in one BLE write (`maxLineLength` = MTU − 3),
+  capped by the device's `READY` value. Lines longer than one write are split
+  and Board 5 must join them up to the newline.
+- Timeouts: 30 s for `READY` (flash erase), 5 s per `ACK` with 3 resends,
+  60 s for `OK`. Link loss or Cancel fails the update.
+- Board 5 handles `B5` itself (ESP32 OTA partition; images must start with
+  `0xE9`) and forwards `B1` to the Teensy. Both must verify size + CRC-32
+  before switching images, so an interrupted update keeps the old firmware.
+- After `OK`: Board 5 restarts (link drops, auto-reconnect, `VER` refreshes);
+  for Board 1 the app sends `CMD,STATUS` after 6 s.
+- Measuring is blocked while an update runs (`DeviceService.isUpdatingFirmware`).
 
 ## Connection lifecycle (BLE)
 - `connect()`: try the remembered device ID directly (8 s), fall back to a
@@ -79,6 +126,7 @@ One message per line, comma separated. Unknown lines are ignored.
 | Device → app | `VER,<b1 fw>,<b5 fw>` | Firmware versions |
 | App → device | `CMD,START` / `CMD,STOP` | Start / stop a cycle (Stop is a request) |
 | App → device | `CMD,STATUS` | Firmware should reply with `STATE` and `VER` |
+| Both | `OTA,…` | Firmware update, see above |
 
 BLE: service `6E400001-B5A3-F393-E0A9-E50E24DCCA9E`, RX (write)
 `6E400002-…`, TX (notify) `6E400003-…`.
@@ -103,3 +151,6 @@ BLE: service `6E400001-B5A3-F393-E0A9-E50E24DCCA9E`, RX (write)
   backup round trip, CSV/PDF export.
 - `device_test.dart`: VER/firmware, status wording, interrupted cycles,
   reconnect policy, mock reconnect (uses `fake_async`).
+- `firmware_test.dart`: CRC-32, OTA parsing, image checks, full updates via
+  the mock, retries, device rejection, link loss, cancel.
+- `alerts_test.dart`: trend alert rules, reminder scheduling and JSON.

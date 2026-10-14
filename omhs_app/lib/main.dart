@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'data/notifications.dart';
 import 'data/readings_store.dart';
+import 'data/trend_alerts.dart';
 import 'data/user_profile.dart';
 import 'device/ble_device_service.dart';
 import 'device/device_service.dart';
@@ -27,6 +29,23 @@ Future<void> main() async {
   final store =
       await ReadingsStore.load(device, profile, seedDemoData: useMock);
 
+  final notifications = NotificationService();
+  await notifications.init();
+  await notifications.applyReminder(settings.reminder);
+  // A reading that finishes while the app is in the background: say so if
+  // it needs attention. In the foreground the screens show the alerts.
+  // Subscribed after the store, so the new reading is already in it.
+  device.results.listen((_) {
+    if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+      return;
+    }
+    final alerts =
+        trendAlerts(store.items, ageAt: profile.profile.ageAt);
+    if (alerts.isEmpty) return;
+    notifications.showAlert(
+        alerts.first.title(settings.unit), alerts.first.message(settings.unit));
+  });
+
   runApp(
     MultiProvider(
       providers: [
@@ -34,6 +53,7 @@ Future<void> main() async {
         ChangeNotifierProvider<ProfileStore>.value(value: profile),
         ChangeNotifierProvider<DeviceService>.value(value: device),
         ChangeNotifierProvider<ReadingsStore>.value(value: store),
+        Provider<NotificationService>.value(value: notifications),
       ],
       child: const OmhsApp(),
     ),

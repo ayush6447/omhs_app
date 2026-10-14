@@ -76,7 +76,9 @@ abstract class DeviceService extends ChangeNotifier {
   int _attempt = 0;
   bool _interrupted = false;
   String? _firmware;
+  bool _updating = false;
   final _results = StreamController<Reading>.broadcast();
+  final _ota = StreamController<OtaEvent>.broadcast();
 
   LinkStatus get link => _link;
   String? get deviceName => _name;
@@ -110,6 +112,23 @@ abstract class DeviceService extends ChangeNotifier {
 
   /// Every completed measurement.
   Stream<Reading> get results => _results.stream;
+
+  /// Device replies during a firmware update, for FirmwareUpdater.
+  Stream<OtaEvent> get otaEvents => _ota.stream;
+
+  /// True while a firmware update is being sent; measuring is blocked.
+  bool get isUpdatingFirmware => _updating;
+
+  /// Set by FirmwareUpdater around an update.
+  void setFirmwareUpdating(bool value) {
+    if (_updating == value) return;
+    _updating = value;
+    notifyListeners();
+  }
+
+  /// Longest line (with its newline) that fits in one write to the device.
+  /// The BLE transport knows the negotiated MTU; this is a safe default.
+  int get maxLineLength => 180;
 
   bool get isConnected => _link == LinkStatus.connected;
 
@@ -217,7 +236,11 @@ abstract class DeviceService extends ChangeNotifier {
     }
   }
 
-  Future<void> start() => sendLine(cmdStart);
+  Future<void> start() async {
+    if (_updating) return;
+    await sendLine(cmdStart);
+  }
+
   Future<void> stop() => sendLine(cmdStop);
 
   void clearInterrupted() {
@@ -257,6 +280,9 @@ abstract class DeviceService extends ChangeNotifier {
     final event = parseLine(line);
     if (event == null) return;
     switch (event) {
+      case OtaEvent():
+        _ota.add(event);
+        return;
       case PhaseEvent(:final phase):
         if (phase == MeasurePhase.inflating) {
           _peak = 0;
@@ -300,6 +326,7 @@ abstract class DeviceService extends ChangeNotifier {
   @override
   void dispose() {
     _results.close();
+    _ota.close();
     super.dispose();
   }
 }

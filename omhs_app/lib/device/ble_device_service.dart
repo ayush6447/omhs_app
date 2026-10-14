@@ -146,15 +146,25 @@ class BleDeviceService extends DeviceService with WidgetsBindingObserver {
     }
   }
 
+  /// One write carries MTU - 3 bytes (Android asks for 512 on connect; iOS
+  /// negotiates on its own, usually 185).
+  @override
+  int get maxLineLength => (_device?.mtuNow ?? 23) - 3;
+
   @override
   Future<void> sendLine(String line) async {
     final rx = _rx;
     if (!isConnected || rx == null) return;
+    final bytes = utf8.encode('$line\n');
+    final max = maxLineLength;
     try {
-      await rx.write(
-        utf8.encode('$line\n'),
-        withoutResponse: rx.properties.writeWithoutResponse,
-      );
+      // Longer lines go out in pieces; Board 5 joins them up to the '\n'.
+      for (var i = 0; i < bytes.length; i += max) {
+        await rx.write(
+          bytes.sublist(i, i + max < bytes.length ? i + max : bytes.length),
+          withoutResponse: rx.properties.writeWithoutResponse,
+        );
+      }
     } catch (e) {
       debugPrint('BLE write failed: $e');
       setLink(link, error: 'Could not send command to device');

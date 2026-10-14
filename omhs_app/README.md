@@ -24,6 +24,12 @@ Requires Flutter 3.27+. iOS cloud builds: `codemagic.yaml` at the repo root.
   PDF report and CSV export.
 - **Profiles:** multiple people per phone, photo, age-based categories.
 - **Settings:** theme, units, device connect/forget, firmware version, backup.
+- **Firmware updates over BLE** (Settings → Update firmware) for Board 1 or
+  Board 5, with CRC check, progress and cancel. Needs firmware support
+  (draft protocol in ARCHITECTURE.md); works end to end with `OMHS_MOCK=true`.
+- **Reminders & trend alerts:** daily or weekly measurement reminder; high,
+  rising, worse-band and weak-signal readings are pointed out on screen (and
+  as a notification if the app is in the background).
 - **Auto-reconnect:** remembers the last device and reconnects with back-off
   (gives up after 2 min, resumes on foreground / Bluetooth on).
 
@@ -37,10 +43,14 @@ Requires Flutter 3.27+. iOS cloud builds: `codemagic.yaml` at the repo root.
 > its nonprofit license; commercial use needs a paid license.
 
 ## Future upgrades
+Done: firmware updates over BLE (app side) and reminders/trend alerts.
+
 **Device & data**
 1. **Raw optical samples** – add a `RAW,…` line and store samples per reading
    for calibration and algorithm work.
-2. **Firmware OTA** – update Board 5 / Teensy firmware from the app over BLE.
+2. **OTA firmware side + speed** – implement the `OTA,…` protocol on Board 5
+   and the Teensy; then a sliding window (several chunks in flight) or a
+   binary characteristic for faster updates.
 3. **Device calibration flow** – guided cuff/LED self-test before measuring.
 4. **SQLite storage** (drift/sqflite) once history grows; keep JSON for backup.
 5. **Encrypted storage + app lock** (biometric/PIN), since this is health data.
@@ -52,7 +62,8 @@ Requires Flutter 3.27+. iOS cloud builds: `codemagic.yaml` at the repo root.
    Observation export for EHRs.
 8. **Fuller lipid panel** – HDL/LDL/triglycerides if the hardware supports it;
    sex-specific ranges.
-9. **Reminders** – scheduled measurement notifications and trend alerts.
+9. **Smarter reminders** – skip the reminder when you've already measured
+   that day; per-profile schedules.
 
 **App quality**
 10. **Localization** (Hindi and others) and accessibility pass (screen reader

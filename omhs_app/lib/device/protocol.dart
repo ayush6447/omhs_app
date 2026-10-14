@@ -4,6 +4,7 @@
 /// forwards those same lines over BLE unchanged, so the app parses exactly
 /// what the Teensy prints. One message per line, comma separated.
 ///
+/// ```text
 /// Device -> app
 ///   STATE,<IDLE|INFLATE|HOLD|MEASURE|DEFLATE|DONE>
 ///   P,<cuff pressure mmHg>
@@ -12,12 +13,21 @@
 ///   RESULT,<total chol mg/dL>,<quality 0..1>
 ///   ERR,<message>
 ///   VER,<board 1 firmware>,<board 5 firmware>
+///   OTA,READY[,<max chunk bytes>] (ready for OTA,DATA)
+///   OTA,ACK,<next offset>         (chunk written; send from this offset)
+///   OTA,OK                        (image verified; device restarts)
+///   OTA,FAIL,<message>
 ///
 /// App -> device
 ///   CMD,START
 ///   CMD,STOP
 ///   CMD,STATUS                    (reply with STATE and VER; sent after
 ///                                  every connect and reconnect)
+///   OTA,BEGIN,<B1|B5>,<size bytes>,<crc32 hex>
+///   OTA,DATA,<offset>,<base64>    (one chunk; wait for ACK before the next)
+///   OTA,END
+///   OTA,ABORT
+/// ```
 ///
 /// This is a draft; change it here and in the Teensy firmware together.
 library;
@@ -67,6 +77,32 @@ class VersionEvent extends DeviceEvent {
   const VersionEvent(this.board1, this.board5);
   final String board1;
   final String board5;
+}
+
+/// Replies during a firmware update; see firmware_update.dart.
+sealed class OtaEvent extends DeviceEvent {
+  const OtaEvent();
+}
+
+class OtaReadyEvent extends OtaEvent {
+  const OtaReadyEvent(this.maxChunk);
+
+  /// Largest chunk the device accepts, in bytes; null when it didn't say.
+  final int? maxChunk;
+}
+
+class OtaAckEvent extends OtaEvent {
+  const OtaAckEvent(this.nextOffset);
+  final int nextOffset;
+}
+
+class OtaOkEvent extends OtaEvent {
+  const OtaOkEvent();
+}
+
+class OtaFailEvent extends OtaEvent {
+  const OtaFailEvent(this.message);
+  final String message;
 }
 
 class ErrorEvent extends DeviceEvent {
@@ -119,7 +155,21 @@ DeviceEvent? parseLine(String raw) {
       return b1.isEmpty && b5.isEmpty ? null : VersionEvent(b1, b5);
     case 'ERR':
       return ErrorEvent(parts.skip(1).join(',').trim());
+    case 'OTA':
+      return _parseOta(parts);
     default:
       return null;
   }
+}
+
+DeviceEvent? _parseOta(List<String> parts) {
+  final kind = parts.length > 1 ? parts[1].trim().toUpperCase() : '';
+  final arg = parts.length > 2 ? int.tryParse(parts[2].trim()) : null;
+  return switch (kind) {
+    'READY' => OtaReadyEvent(arg != null && arg > 0 ? arg : null),
+    'ACK' => arg == null || arg < 0 ? null : OtaAckEvent(arg),
+    'OK' => const OtaOkEvent(),
+    'FAIL' => OtaFailEvent(parts.skip(2).join(',').trim()),
+    _ => null,
+  };
 }

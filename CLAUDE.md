@@ -39,6 +39,11 @@ Requires Flutter 3.27+ (Dart ^3.6; uses `Color.withValues`).
   overwritten. Keep it that way.
 - **New `Reading` fields** must be optional in `fromJson` (old files and
   backups lack them) and carried through `copyWith`.
+- **Firmware updates** go through `FirmwareUpdater` only; keep `OTA,…` in
+  `protocol.dart`, the mock and `ARCHITECTURE.md` in step. Never allow an
+  update while measuring, or measuring while updating.
+- **Notifications** stay local (no push service) and are asked for only when
+  the user turns reminders on.
 - **Stop is not a safety cutoff.** Firmware enforces max pressure/time; never
   imply otherwise in UI copy.
 - **Demo data** is seeded only with `OMHS_MOCK=true`; never mix it into real history.

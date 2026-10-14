@@ -7,13 +7,17 @@ import 'package:provider/provider.dart';
 import '../data/backup.dart';
 import '../data/export.dart';
 import '../data/format.dart';
+import '../data/notifications.dart';
 import '../data/readings_store.dart';
+import '../data/reminders.dart';
 import '../data/user_profile.dart';
 import '../device/device_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_settings.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
+import '../widgets/form_fields.dart';
+import 'firmware_screen.dart';
 import 'profile_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -123,6 +127,17 @@ class SettingsScreen extends StatelessWidget {
                     expand: true,
                     onPressed: d.runStatusAction,
                   ),
+                if (d.isConnected) ...[
+                  const SizedBox(height: 10),
+                  PillButton(
+                    label: 'Update firmware',
+                    icon: Icons.system_update_alt_rounded,
+                    variant: PillVariant.outline,
+                    expand: true,
+                    onPressed: () =>
+                        Navigator.of(context).push(FirmwareScreen.route()),
+                  ),
+                ],
                 if (d.hasRememberedDevice) ...[
                   const SizedBox(height: 6),
                   Center(
@@ -135,6 +150,9 @@ class SettingsScreen extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(height: 26),
+          const SectionLabel('Reminders'),
+          const _ReminderCard(),
           const SizedBox(height: 26),
           const SectionLabel('Backup'),
           const _BackupCard(),
@@ -325,6 +343,136 @@ class _BackupCard extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Measurement reminder: on/off, daily or weekly, and the time.
+class _ReminderCard extends StatelessWidget {
+  const _ReminderCard();
+
+  Future<void> _save(BuildContext context, ReminderSchedule next) async {
+    final settings = context.read<AppSettings>();
+    final notifications = context.read<NotificationService>();
+    final messenger = ScaffoldMessenger.of(context);
+    if (next.enabled && !settings.reminder.enabled) {
+      if (!await notifications.requestPermission()) {
+        messenger.showSnackBar(const SnackBar(
+            content: Text(
+                'Allow notifications for OMHS in system settings to get '
+                'reminders.')));
+        return;
+      }
+    }
+    await settings.setReminder(next);
+    await notifications.applyReminder(next);
+  }
+
+  Future<void> _pickTime(BuildContext context, ReminderSchedule r) async {
+    final t = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: r.hour, minute: r.minute),
+    );
+    if (t != null && context.mounted) {
+      await _save(context, r.copyWith(hour: t.hour, minute: t.minute));
+    }
+  }
+
+  Future<void> _pickDay(BuildContext context, ReminderSchedule r) async {
+    final day = await showDialog<int>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Remind me on'),
+        children: [
+          for (var d = DateTime.monday; d <= DateTime.sunday; d++)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, d),
+              child: Text(weekdayName(d),
+                  style: TextStyle(
+                      fontWeight: d == r.weekday ? FontWeight.w700 : null)),
+            ),
+        ],
+      ),
+    );
+    if (day != null && context.mounted) {
+      await _save(context, r.copyWith(weekday: day));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.omhs;
+    final r = context.watch<AppSettings>().reminder;
+    return SoftCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Measurement reminder',
+                        style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: c.text)),
+                    const SizedBox(height: 2),
+                    Text(r.enabled ? r.describe() : 'Off',
+                        style: TextStyle(fontSize: 12, color: c.muted)),
+                  ],
+                ),
+              ),
+              Switch.adaptive(
+                value: r.enabled,
+                onChanged: (on) => _save(context, r.copyWith(enabled: on)),
+              ),
+            ],
+          ),
+          if (r.enabled) ...[
+            const SizedBox(height: 14),
+            SegmentedPill<ReminderRepeat>(
+              values: ReminderRepeat.values,
+              labels: const ['Daily', 'Weekly'],
+              selected: r.repeat,
+              onChanged: (v) => _save(context, r.copyWith(repeat: v)),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                if (r.repeat == ReminderRepeat.weekly) ...[
+                  Expanded(
+                    child: AppTapField(
+                      label: 'Day',
+                      value: weekdayName(r.weekday),
+                      icon: Icons.event_rounded,
+                      onTap: () => _pickDay(context, r),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                ],
+                Expanded(
+                  child: AppTapField(
+                    label: 'Time',
+                    value: TimeOfDay(hour: r.hour, minute: r.minute)
+                        .format(context),
+                    icon: Icons.schedule_rounded,
+                    onTap: () => _pickTime(context, r),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 12),
+          Text(
+            'High, rising or weak-signal readings are pointed out on the '
+            'Dashboard, and with a notification if the app is in the '
+            'background.',
+            style: TextStyle(fontSize: 12, color: c.muted, height: 1.45),
           ),
         ],
       ),
