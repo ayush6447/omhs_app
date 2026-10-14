@@ -19,6 +19,8 @@ flutter test                                   # unit + store + device tests
 flutter analyze                                # no errors/warnings (a few infos exist)
 flutter run                                    # real device over BLE
 flutter run --dart-define=OMHS_MOCK=true       # simulated device + demo history
+firebase deploy --only firestore:rules         # after editing firestore.rules
+flutterfire configure --project=omhs-1ec50     # regenerate Firebase config
 dart run flutter_launcher_icons                # after changing the logo
 ```
 Requires Flutter 3.27+ (Dart ^3.6; uses `Color.withValues`).
@@ -42,8 +44,13 @@ Requires Flutter 3.27+ (Dart ^3.6; uses `Color.withValues`).
 - **Firmware updates** go through `FirmwareUpdater` only; keep `OTA,…` in
   `protocol.dart`, the mock and `ARCHITECTURE.md` in step. Never allow an
   update while measuring, or measuring while updating.
-- **Notifications** stay local (no push service) and are asked for only when
-  the user turns reminders on.
+- **Notifications:** reminders and alerts are local, asked for only when the
+  user turns reminders on. Push (FCM) only via `PushService`.
+- **Cloud is optional.** The app must work signed out and when Firebase fails
+  to start. Merge logic lives in `cloud/sync_plan.dart` (pure, tested); keep
+  Firestore paths, `firestore.rules` and `ARCHITECTURE.md` in step. New
+  synced fields need nothing extra (documents are the model's `toJson`), but
+  never sync device-local paths (see `photoPath`).
 - **Stop is not a safety cutoff.** Firmware enforces max pressure/time; never
   imply otherwise in UI copy.
 - **Demo data** is seeded only with `OMHS_MOCK=true`; never mix it into real history.

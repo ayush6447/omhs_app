@@ -30,6 +30,9 @@ Requires Flutter 3.27+. iOS cloud builds: `codemagic.yaml` at the repo root.
 - **Reminders & trend alerts:** daily or weekly measurement reminder; high,
   rising, worse-band and weak-signal readings are pointed out on screen (and
   as a notification if the app is in the background).
+- **Google account & cloud sync (optional):** Settings → Account. Profiles,
+  photos and readings sync to Firestore across phones; works offline and
+  syncs later. Push messages from the Firebase console (topic `all`).
 - **Auto-reconnect:** remembers the last device and reconnects with back-off
   (gives up after 2 min, resumes on foreground / Bluetooth on).
 
@@ -43,7 +46,8 @@ Requires Flutter 3.27+. iOS cloud builds: `codemagic.yaml` at the repo root.
 > its nonprofit license; commercial use needs a paid license.
 
 ## Future upgrades
-Done: firmware updates over BLE (app side) and reminders/trend alerts.
+Done: firmware updates over BLE (app side), reminders/trend alerts, Google
+sign-in with cloud sync and push messages.
 
 **Device & data**
 1. **Raw optical samples** – add a `RAW,…` line and store samples per reading
@@ -56,8 +60,8 @@ Done: firmware updates over BLE (app side) and reminders/trend alerts.
 5. **Encrypted storage + app lock** (biometric/PIN), since this is health data.
 
 **Clinical & sync**
-6. **Cloud sync / clinic dashboard** – optional account, multi-device sync,
-   clinician view of patients.
+6. **Clinic dashboard** – clinician web view of shared patients on top of
+   the Firestore data; per-user push (tokens are already stored).
 7. **Health platform export** – Apple Health / Health Connect, FHIR
    Observation export for EHRs.
 8. **Fuller lipid panel** – HDL/LDL/triglycerides if the hardware supports it;

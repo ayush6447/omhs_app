@@ -4,6 +4,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../cloud/account.dart';
+import '../cloud/cloud_sync.dart';
 import '../data/backup.dart';
 import '../data/export.dart';
 import '../data/format.dart';
@@ -59,6 +61,12 @@ class SettingsScreen extends StatelessWidget {
                   : 'Add another person'),
             ),
           ),
+          if (context.watch<AccountService>().available) ...[
+            const SizedBox(height: 16),
+            const SectionLabel('Account'),
+            const _AccountCard(),
+            const SizedBox(height: 10),
+          ],
           const SizedBox(height: 16),
           const SectionLabel('Appearance'),
           SegmentedPill<ThemeMode>(
@@ -478,4 +486,176 @@ class _ReminderCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Google sign-in and cloud sync status.
+class _AccountCard extends StatelessWidget {
+  const _AccountCard();
+
+  Future<void> _deleteCloud(BuildContext context) async {
+    final sync = context.read<CloudSync>();
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete your cloud copy?'),
+        content: const Text(
+            'Profiles and readings stored in your account are deleted and '
+            'you are signed out. Everything on this phone stays.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: context.omhs.danger),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await sync.deleteCloudData();
+      messenger.showSnackBar(
+          const SnackBar(content: Text('Cloud copy deleted.')));
+    } catch (e) {
+      debugPrint('Deleting cloud data failed: $e');
+      messenger.showSnackBar(const SnackBar(
+          content: Text('Could not delete. Check your connection.')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.omhs;
+    final account = context.watch<AccountService>();
+    final sync = context.watch<CloudSync>();
+    final user = account.user;
+
+    if (user == null) {
+      return SoftCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Sign in to keep profiles and readings in your Google account '
+              'and use them on another phone. Optional: the app works fully '
+              'without it.',
+              style: TextStyle(fontSize: 12, color: c.muted, height: 1.45),
+            ),
+            const SizedBox(height: 14),
+            PillButton(
+              label: account.busy ? 'Signing in…' : 'Sign in with Google',
+              icon: Icons.account_circle_outlined,
+              variant: PillVariant.primary,
+              expand: true,
+              onPressed: account.busy ? null : account.signInWithGoogle,
+            ),
+            if (account.error != null) ...[
+              const SizedBox(height: 10),
+              Text(account.error!,
+                  style: TextStyle(fontSize: 12, color: c.danger)),
+            ],
+          ],
+        ),
+      );
+    }
+
+    final (String status, Color color) = switch (sync.status) {
+      SyncStatus.syncing => ('Syncing…', c.muted),
+      SyncStatus.synced => (
+          sync.lastSynced == null
+              ? 'Synced'
+              : 'Synced ${_ago(sync.lastSynced!)}',
+          c.ok
+        ),
+      SyncStatus.waiting => ('Saved on this phone; syncs when online', c.muted),
+      SyncStatus.error => (sync.error ?? 'Sync failed', c.danger),
+      SyncStatus.off => ('Not syncing', c.muted),
+    };
+    final photo = user.photoURL;
+    return SoftCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: c.primary,
+                foregroundImage: photo == null ? null : NetworkImage(photo),
+                child: Icon(Icons.person_rounded, color: c.onPrimary),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      user.displayName ?? user.email ?? 'Signed in',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: c.text),
+                    ),
+                    if (user.email != null && user.displayName != null)
+                      Text(user.email!,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 12, color: c.muted)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(status, style: TextStyle(fontSize: 12, color: color, height: 1.4)),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: PillButton(
+                  label: 'Sync now',
+                  icon: Icons.sync_rounded,
+                  variant: PillVariant.outline,
+                  expand: true,
+                  onPressed: sync.status == SyncStatus.syncing
+                      ? null
+                      : sync.syncNow,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: PillButton(
+                  label: 'Sign out',
+                  icon: Icons.logout_rounded,
+                  variant: PillVariant.outline,
+                  expand: true,
+                  onPressed: account.signOut,
+                ),
+              ),
+            ],
+          ),
+          Center(
+            child: TextButton(
+              onPressed: () => _deleteCloud(context),
+              style: TextButton.styleFrom(foregroundColor: c.danger),
+              child: const Text('Delete cloud copy'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// e.g. "just now", "5 min ago", "3 h ago", "on 29 Sep"
+String _ago(DateTime t) {
+  final d = DateTime.now().difference(t);
+  if (d.inMinutes < 1) return 'just now';
+  if (d.inHours < 1) return '${d.inMinutes} min ago';
+  if (d.inDays < 1) return '${d.inHours} h ago';
+  return 'on ${formatShortDate(t)}';
 }

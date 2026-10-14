@@ -8,14 +8,16 @@ import 'package:timezone/timezone.dart' as tz;
 
 import 'reminders.dart';
 
-/// Local notifications: the measurement reminder and trend alerts that
-/// arrive while the app is in the background. Nothing leaves the phone.
+/// Local notifications: the measurement reminder, trend alerts that arrive
+/// while the app is in the background, and push messages received while the
+/// app is open (the system shows them itself otherwise).
 class NotificationService {
   final _plugin = FlutterLocalNotificationsPlugin();
   bool _ready = false;
 
   static const _reminderId = 1;
   static const _alertId = 2;
+  static const _messageId = 3;
 
   static const _reminderDetails = NotificationDetails(
     android: AndroidNotificationDetails(
@@ -33,6 +35,15 @@ class NotificationService {
       channelDescription: 'High, rising or unreliable readings.',
       importance: Importance.high,
       priority: Priority.high,
+    ),
+    iOS: DarwinNotificationDetails(),
+  );
+
+  static const _messageDetails = NotificationDetails(
+    android: AndroidNotificationDetails(
+      'messages',
+      'Messages',
+      channelDescription: 'News from the OMHS team, e.g. firmware updates.',
     ),
     iOS: DarwinNotificationDetails(),
   );
@@ -114,17 +125,21 @@ class NotificationService {
     }
   }
 
-  Future<void> showAlert(String title, String body) async {
+  Future<void> showAlert(String title, String body) =>
+      _show(_alertId, title, body, _alertDetails);
+
+  /// A push message that arrived while the app is open.
+  Future<void> showMessage(String title, String body) =>
+      _show(_messageId, title, body, _messageDetails);
+
+  Future<void> _show(
+      int id, String title, String body, NotificationDetails details) async {
     if (!_ready) return;
     try {
       await _plugin.show(
-        id: _alertId,
-        title: title,
-        body: body,
-        notificationDetails: _alertDetails,
-      );
+          id: id, title: title, body: body, notificationDetails: details);
     } catch (e) {
-      debugPrint('Showing an alert failed: $e');
+      debugPrint('Showing a notification failed: $e');
     }
   }
 }

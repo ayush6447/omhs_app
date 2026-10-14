@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "394723176947",
+    "project_id": "omhs-1ec50",
+    "storage_bucket": "omhs-1ec50.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:394723176947:android:e3c55fac63298bbd16a286",
+        "android_client_info": {
+          "package_name": "com.ayuda.omhs.omhs_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "394723176947-jfsgebt3dqvndgoih82u8q4f1a9j0nsd.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ayuda.omhs.omhs_app",
+            "certificate_hash": "643050d99848472f6e7707d20a79608e531c3605"
+          }
+        },
+        {
+          "client_id": "394723176947-l0vc6aaqb996tb87pccfg4ndel83ld0t.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDSdYFprJ1EWv95rcpAwr6pOLI64hcc3os"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "394723176947-l0vc6aaqb996tb87pccfg4ndel83ld0t.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "394723176947-0j57tu58bn97bd4tgdh92nqogblgul5t.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.ayuda.omhs.omhsApp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
