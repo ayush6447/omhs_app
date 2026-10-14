@@ -71,6 +71,7 @@ class ReportExporter {
         'led2_ma',
         'flagged',
         'note',
+        'firmware',
       ],
       for (final r in readings)
         [
@@ -84,6 +85,7 @@ class ReportExporter {
           r.ch2mA.toStringAsFixed(1),
           r.flagged ? 'yes' : 'no',
           r.note ?? '',
+          r.firmware ?? '',
         ],
     ];
     return rows.map((row) => row.map(cell).join(',')).join('\r\n');

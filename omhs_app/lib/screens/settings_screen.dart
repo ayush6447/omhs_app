@@ -27,11 +27,7 @@ class SettingsScreen extends StatelessWidget {
 
     Widget value(String v) => PillBadge(v, bg: c.badge, fg: c.onBadge);
 
-    final status = switch (d.link) {
-      LinkStatus.connected => 'Connected',
-      LinkStatus.connecting => 'Connecting…',
-      LinkStatus.disconnected => 'Not connected',
-    };
+    final status = d.status;
 
     return SafeArea(
       bottom: false,
@@ -92,34 +88,50 @@ class SettingsScreen extends StatelessWidget {
           SoftCard(
             child: Column(
               children: [
-                KeyValueRow('Status', value(status)),
+                KeyValueRow('Status',
+                    value(d.isConnected ? 'Connected' : status.title)),
                 Divider(height: 20, color: c.divider),
                 KeyValueRow('Name', value(d.deviceName ?? '—')),
                 Divider(height: 20, color: c.divider),
+                KeyValueRow('Firmware', value(d.firmware ?? '—')),
+                Divider(height: 20, color: c.divider),
                 KeyValueRow('Link', value('BLE · Board 5')),
-                if (d.linkError != null) ...[
+                if (status.detail != null) ...[
                   const SizedBox(height: 12),
                   Text(
-                    d.linkError!,
-                    style: TextStyle(fontSize: 12, color: c.danger, height: 1.4),
+                    status.detail!,
+                    style: TextStyle(
+                        fontSize: 12,
+                        height: 1.4,
+                        color: status.tone == StatusTone.problem
+                            ? c.danger
+                            : c.muted),
                   ),
                 ],
                 const SizedBox(height: 16),
-                if (d.link == LinkStatus.connected)
+                if (d.isConnected || d.isLinking)
                   PillButton(
-                    label: 'Disconnect',
+                    label: d.isConnected ? 'Disconnect' : 'Cancel',
                     variant: PillVariant.outline,
                     expand: true,
                     onPressed: d.disconnect,
                   )
                 else
                   PillButton(
-                    label: 'Connect',
+                    label: status.actionLabel ?? 'Connect',
                     variant: PillVariant.primary,
                     expand: true,
-                    onPressed:
-                        d.link == LinkStatus.connecting ? null : d.connect,
+                    onPressed: d.runStatusAction,
                   ),
+                if (d.hasRememberedDevice) ...[
+                  const SizedBox(height: 6),
+                  Center(
+                    child: TextButton(
+                      onPressed: d.forgetDevice,
+                      child: const Text('Forget this device'),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -271,8 +283,9 @@ class _BackupCard extends StatelessWidget {
       await backup.restoreInto(profiles, readings);
       messenger.showSnackBar(const SnackBar(content: Text('Backup restored.')));
     } catch (e) {
-      messenger.showSnackBar(
-          const SnackBar(content: Text('Restore failed. Try again or use another backup file.')));
+      messenger.showSnackBar(const SnackBar(
+          content:
+              Text('Restore failed. Try again or use another backup file.')));
       debugPrint('Restore failed: $e');
     }
   }

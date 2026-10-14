@@ -14,6 +14,7 @@ class Reading {
     this.flagged = false,
     this.note,
     this.profileId,
+    this.firmware,
   });
 
   final String id;
@@ -38,8 +39,10 @@ class Reading {
   /// Whose reading this is (see ProfileStore). Null until the store tags it.
   final String? profileId;
 
-  Reading copyWith({bool? flagged, String? note, String? profileId}) =>
-      Reading(
+  /// Device firmware that produced it ("b1 1.2 / b5 0.4"), if it reported one.
+  final String? firmware;
+
+  Reading copyWith({bool? flagged, String? note, String? profileId}) => Reading(
         id: id,
         time: time,
         totalChol: totalChol,
@@ -50,6 +53,7 @@ class Reading {
         flagged: flagged ?? this.flagged,
         note: note ?? this.note,
         profileId: profileId ?? this.profileId,
+        firmware: firmware,
       );
 
   Map<String, dynamic> toJson() => {
@@ -63,6 +67,7 @@ class Reading {
         'flagged': flagged,
         'note': note,
         'profileId': profileId,
+        if (firmware != null) 'firmware': firmware,
       };
 
   factory Reading.fromJson(Map<String, dynamic> j) => Reading(
@@ -76,5 +81,6 @@ class Reading {
         flagged: j['flagged'] as bool? ?? false,
         note: j['note'] as String?,
         profileId: j['profileId'] as String?,
+        firmware: j['firmware'] as String?,
       );
 }

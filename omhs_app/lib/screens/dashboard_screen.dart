@@ -246,7 +246,7 @@ class _TabLabel extends StatelessWidget {
   }
 }
 
-/// "● OMHS-v2 · Connected" with a Connect action when offline.
+/// "● OMHS-v2 · Connected", or what's wrong and what to do about it.
 class DeviceStatusChip extends StatelessWidget {
   const DeviceStatusChip({super.key});
 
@@ -254,12 +254,10 @@ class DeviceStatusChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.omhs;
     final d = context.watch<DeviceService>();
-    final (Color dot, String text) = switch (d.link) {
-      LinkStatus.connected => (c.ok, '${d.deviceName ?? 'OMHS'} · Connected'),
-      LinkStatus.connecting => (c.pink, 'Connecting…'),
-      LinkStatus.disconnected => (c.muted, 'Device not connected'),
-    };
-    return Container(
+    final s = d.status;
+    final dot = statusColor(c, s.tone);
+    final text = s.title;
+    final chip = Container(
       padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
       decoration: BoxDecoration(
         color: c.surfaceAlt,
@@ -281,12 +279,37 @@ class DeviceStatusChip extends StatelessWidget {
                   fontSize: 13, fontWeight: FontWeight.w500, color: c.text),
             ),
           ),
-          if (d.link == LinkStatus.disconnected)
-            TextButton(onPressed: d.connect, child: const Text('Connect'))
+          if (s.actionLabel != null)
+            TextButton(
+                onPressed: d.runStatusAction, child: Text(s.actionLabel!))
           else
             const SizedBox(height: 40),
         ],
       ),
     );
+    if (s.detail == null) return chip;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        chip,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 6, 14, 0),
+          child: Text(
+            s.detail!,
+            style: TextStyle(
+                fontSize: 12,
+                height: 1.4,
+                color: s.tone == StatusTone.problem ? c.danger : c.muted),
+          ),
+        ),
+      ],
+    );
   }
 }
+
+Color statusColor(OmhsColors c, StatusTone tone) => switch (tone) {
+      StatusTone.ok => c.ok,
+      StatusTone.busy => c.pink,
+      StatusTone.idle => c.muted,
+      StatusTone.problem => c.danger,
+    };

@@ -21,6 +21,9 @@ class MockDeviceService extends DeviceService {
   static const _deflateEnd = 130; // 2 s
   static const _target = 180.0; // mmHg
 
+  /// Simulated firmware versions reported by CMD,STATUS.
+  static const firmwareLine = 'VER,0.1-sim,0.1-sim';
+
   @override
   Future<void> connect() async {
     if (link != LinkStatus.disconnected) return;
@@ -28,7 +31,7 @@ class MockDeviceService extends DeviceService {
     await Future<void>.delayed(const Duration(milliseconds: 1200));
     if (link != LinkStatus.connecting) return; // cancelled meanwhile
     setLink(LinkStatus.connected, name: name);
-    handleLine('STATE,IDLE');
+    await requestStatus();
   }
 
   @override
@@ -37,11 +40,28 @@ class MockDeviceService extends DeviceService {
     setLink(LinkStatus.disconnected);
   }
 
+  /// Drops the link as if the device went out of range, then comes back
+  /// after [after], like the BLE service's automatic reconnect.
+  Future<void> simulateDrop(
+      {Duration after = const Duration(seconds: 3)}) async {
+    if (!isConnected) return;
+    _timer?.cancel();
+    setLink(LinkStatus.reconnecting, issue: LinkIssue.lost, attempt: 1);
+    await Future<void>.delayed(after);
+    if (link != LinkStatus.reconnecting) return; // cancelled meanwhile
+    setLink(LinkStatus.connected, name: name);
+    await requestStatus();
+  }
+
   @override
   Future<void> sendLine(String line) async {
     if (!isConnected) return;
     if (line == cmdStart) _runCycle();
     if (line == cmdStop) _abort();
+    if (line == cmdStatus) {
+      handleLine(firmwareLine);
+      handleLine(isBusy ? 'STATE,DEFLATE' : 'STATE,IDLE');
+    }
   }
 
   double _jitter(double amp) => (_rng.nextDouble() * 2 - 1) * amp;

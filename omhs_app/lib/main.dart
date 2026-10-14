@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'data/readings_store.dart';
 import 'data/user_profile.dart';
@@ -18,8 +19,9 @@ Future<void> main() async {
   // Real device over BLE by default. For the simulated device (no hardware):
   //   flutter run --dart-define=OMHS_MOCK=true
   const useMock = bool.fromEnvironment('OMHS_MOCK');
-  final DeviceService device =
-      useMock ? MockDeviceService() : BleDeviceService();
+  final DeviceService device = useMock
+      ? MockDeviceService()
+      : BleDeviceService(await SharedPreferences.getInstance());
   // Sample history only with the simulated device, so it never mixes into
   // a real person's saved readings.
   final store =
@@ -36,6 +38,8 @@ Future<void> main() async {
       child: const OmhsApp(),
     ),
   );
+  // Reconnect to the last device in the background, if there is one.
+  device.resume();
 }
 
 class OmhsApp extends StatelessWidget {

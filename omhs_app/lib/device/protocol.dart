@@ -11,15 +11,26 @@
 ///   PROG,<0..1>                   (overall cycle progress)
 ///   RESULT,<total chol mg/dL>,<quality 0..1>
 ///   ERR,<message>
+///   VER,<board 1 firmware>,<board 5 firmware>
 ///
 /// App -> device
 ///   CMD,START
 ///   CMD,STOP
+///   CMD,STATUS                    (reply with STATE and VER; sent after
+///                                  every connect and reconnect)
 ///
 /// This is a draft; change it here and in the Teensy firmware together.
 library;
 
-enum MeasurePhase { idle, inflating, holding, measuring, deflating, done, error }
+enum MeasurePhase {
+  idle,
+  inflating,
+  holding,
+  measuring,
+  deflating,
+  done,
+  error
+}
 
 sealed class DeviceEvent {
   const DeviceEvent();
@@ -52,6 +63,12 @@ class ResultEvent extends DeviceEvent {
   final double quality;
 }
 
+class VersionEvent extends DeviceEvent {
+  const VersionEvent(this.board1, this.board5);
+  final String board1;
+  final String board5;
+}
+
 class ErrorEvent extends DeviceEvent {
   const ErrorEvent(this.message);
   final String message;
@@ -59,6 +76,7 @@ class ErrorEvent extends DeviceEvent {
 
 const cmdStart = 'CMD,START';
 const cmdStop = 'CMD,STOP';
+const cmdStatus = 'CMD,STATUS';
 
 const _phases = {
   'IDLE': MeasurePhase.idle,
@@ -95,6 +113,10 @@ DeviceEvent? parseLine(String raw) {
       return a == null ? null : ProgressEvent(a);
     case 'RESULT':
       return (a == null || b == null) ? null : ResultEvent(a, b);
+    case 'VER':
+      String part(int i) => i < parts.length ? parts[i].trim() : '';
+      final b1 = part(1), b5 = part(2);
+      return b1.isEmpty && b5.isEmpty ? null : VersionEvent(b1, b5);
     case 'ERR':
       return ErrorEvent(parts.skip(1).join(',').trim());
     default:

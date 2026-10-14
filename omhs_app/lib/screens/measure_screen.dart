@@ -62,15 +62,20 @@ class MeasureScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 24),
-          if (d.link != LinkStatus.connected)
+          if (!d.isConnected)
             PillButton(
-              label: d.link == LinkStatus.connecting
-                  ? 'Connecting…'
-                  : 'Connect device',
+              label: d.isLinking
+                  ? d.status.title
+                  : switch (d.status.action) {
+                      StatusAction.connect => 'Connect device',
+                      StatusAction.enableBluetooth => 'Turn on Bluetooth',
+                      StatusAction.openSettings => 'Open settings',
+                      _ => 'Try again',
+                    },
               icon: Icons.bluetooth_rounded,
               variant: PillVariant.primary,
               expand: true,
-              onPressed: d.link == LinkStatus.connecting ? null : d.connect,
+              onPressed: d.isLinking ? null : d.runStatusAction,
             )
           else
             Row(
@@ -95,12 +100,48 @@ class MeasureScreen extends StatelessWidget {
                 ),
               ],
             ),
-          if (d.linkError != null) ...[
+          if (!d.isConnected && d.status.detail != null) ...[
             const SizedBox(height: 12),
             Text(
-              d.linkError!,
+              d.status.detail!,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: c.danger, height: 1.4),
+              style: TextStyle(
+                  fontSize: 12,
+                  height: 1.4,
+                  color:
+                      d.status.tone == StatusTone.problem ? c.danger : c.muted),
+            ),
+          ],
+          if (d.isLinking && d.status.action == StatusAction.cancel)
+            Center(
+              child: TextButton(
+                  onPressed: d.disconnect, child: const Text('Cancel')),
+            ),
+          if (d.interruptedCycle) ...[
+            const SizedBox(height: 20),
+            SoftCard(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.bluetooth_disabled_rounded, color: c.pink),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Connection lost during the measurement. The device '
+                      'deflates the cuff on its own. Wait for it to finish, '
+                      'then measure again.',
+                      style:
+                          TextStyle(color: c.text, fontSize: 13, height: 1.4),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Dismiss',
+                    visualDensity: VisualDensity.compact,
+                    icon: Icon(Icons.close_rounded, color: c.muted, size: 20),
+                    onPressed: d.clearInterrupted,
+                  ),
+                ],
+              ),
             ),
           ],
           if (d.phase == MeasurePhase.done && d.lastResult != null) ...[
@@ -141,6 +182,7 @@ class MeasureScreen extends StatelessWidget {
 }
 
 String _phaseTitle(MeasurePhase p, LinkStatus link) {
+  if (link == LinkStatus.reconnecting) return 'Reconnecting';
   if (link != LinkStatus.connected) return 'Not connected';
   return switch (p) {
     MeasurePhase.idle => 'Ready',

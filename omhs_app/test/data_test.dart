@@ -42,8 +42,8 @@ void main() {
     store.toggleFlag('a');
     await store.flush();
 
-    final again = ReadingsStore(
-        MockDeviceService(), profiles, file, await ReadingsStore.readFile(file));
+    final again = ReadingsStore(MockDeviceService(), profiles, file,
+        await ReadingsStore.readFile(file));
     expect(again.items.map((r) => r.id), ['b', 'a']);
     expect(again.byId('a')!.flagged, isTrue);
     expect(again.byId('a')!.note, 'fasting, "quoted"');
@@ -79,7 +79,9 @@ void main() {
         UserProfile(id: 'p1', name: 'A', photoPath: '/old/phone/a.jpg'),
         UserProfile(id: 'p2', name: 'B', doctorPhone: '123'),
       ],
-      photos: {'p1': Uint8List.fromList([1, 2, 3])},
+      photos: {
+        'p1': Uint8List.fromList([1, 2, 3])
+      },
       readings: [_reading('a', 190).copyWith(profileId: 'p1')],
     );
     final back = Backup.decode(backup.encode());
@@ -120,7 +122,9 @@ void main() {
       expect(lines[1], startsWith('2026-09-01'));
       // 185 mg/dL is borderline at 16 (desirable for an adult).
       expect(lines[1], contains(',Borderline,'));
-      expect(lines[1], endsWith('"fasting, ""quoted"""'));
+      // Note, then the firmware column (empty: no VER line was received).
+      expect(lines[1], endsWith('"fasting, ""quoted""",'));
+      expect(lines[0], endsWith(',note,firmware'));
     });
 
     test('pdf builds', () async {
